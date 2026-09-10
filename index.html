@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>XN-KODASSY | Football Shop</title>
+
+    <meta name="description"
+          content="XN-KODASSY - Chaussures, tenues et accessoires de football.">
+
+    <link rel="preconnect"
+          href="https://fonts.googleapis.com">
+
+    <link rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<!-- =====================================================
+     HEADER
+===================================================== -->
+
+<header class="site-header" id="top">
+
+    <div class="header-inner">
+
+        <a href="#top" class="brand">
+
+            <img src="images/WhatsApp Image 2026-09-09 at 01.29.00.jpeg"
+                 alt="XN-KODASSY"
+                 class="brand-logo">
+
+            <div class="brand-text">
+                <span>XN</span>-KODASSY
+            </div>
+
+        </a>
+
+        <nav class="main-nav" id="mainNav">
+
+            <a href="#accueil">Accueil</a>
+
+            <a href="#produits">Produits</a>
+
+            <a href="#commande">Commander</a>
+
+            <a href="#contact">Contact</a>
+
+            <a href="#"
+               id="adminToggleLink"
+               class="nav-admin">
+                Espace gérant
+            </a>
+
+        </nav>
+
+        <button class="burger"
+                id="burgerBtn"
+                aria-label="Ouvrir le menu"
+                aria-expanded="false">
+
+            <span></span>
+            <span></span>
+            <span></span>
+
+        </button>
+
+    </div>
+
+</header>
+
+
+<!-- =====================================================
+     HERO
+===================================================== -->
+
+<section class="hero" id="accueil">
+
+    <div class="hero-background"></div>
+
+    <div class="hero-content">
+
+        <p class="hero-small">
+            XN-KODASSY FOOTBALL SHOP
+        </p>
+
+        <h1>
+            PLAY HARD.<br>
+            <span>LOOK PRO.</span>
+        </h1>
+
+        <p class="hero-description">
+            Chaussures, tenues et accessoires de football
+            pour les joueurs qui veulent donner le maximum
+            sur le terrain.
+        </p>
+
+        <div class="hero-actions">
+
+            <a href="#produits"
+               class="btn btn-primary">
+                Voir nos produits
+            </a>
+
+            <a href="#commande"
+               class="btn btn-outline">
+                Commander
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="hero-ball">
+        ⚽
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     SERVICES
+===================================================== -->
+
+<section class="features">
+
+    <div class="feature">
+
+        <div class="feature-icon">
+            ⚽
+        </div>
+
+        <h3>Football</h3>
+
+        <p>
+            Des produits sélectionnés
+            pour les passionnés du football.
+        </p>
+
+    </div>
+
+
+    <div class="feature">
+
+        <div class="feature-icon">
+            👟
+        </div>
+
+        <h3>Qualité</h3>
+
+        <p>
+            Des chaussures et équipements
+            adaptés à votre style de jeu.
+        </p>
+
+    </div>
+
+
+    <div class="feature">
+
+        <div class="feature-icon">
+            📦
+        </div>
+
+        <h3>Commande en ligne</h3>
+
+        <p>
+            Choisissez votre produit et
+            envoyez votre demande rapidement.
+        </p>
+
+    </div>
+
+
+    <div class="feature">
+
+        <div class="feature-icon">
+            📱
+        </div>
+
+        <h3>WhatsApp</h3>
+
+        <p>
+            Commandez directement avec
+            notre service WhatsApp.
+        </p>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     PRODUITS
+===================================================== -->
+
+<section class="section products-section"
+         id="produits">
+
+    <div class="section-head">
+
+        <p class="section-label">
+            XN-KODASSY
+        </p>
+
+        <h2>
+            NOS PRODUITS
+        </h2>
+
+        <p>
+            Découvrez notre sélection football.
+        </p>
+
+    </div>
+
+
+    <!-- FILTRES -->
+
+    <div class="collection-filters"
+         id="collectionFilters">
+
+        <button class="filter-chip is-active"
+                data-filter="Tous">
+
+            Tous
+
+        </button>
+
+    </div>
+
+
+    <!-- GRILLE PRODUITS -->
+
+    <div class="product-grid"
+         id="productGrid">
+    </div>
+
+
+    <p class="empty-state"
+       id="emptyState"
+       hidden>
+
+        Aucun produit disponible
+        pour le moment.
+
+    </p>
+
+</section>
+
+
+<!-- =====================================================
+     ESPACE GERANT
+===================================================== -->
+
+<section class="admin-panel"
+         id="adminPanel"
+         hidden>
+
+    <div class="admin-inner">
+
+        <div class="admin-head">
+
+            <div>
+
+                <p class="section-label">
+                    ADMINISTRATION
+                </p>
+
+                <h2>
+                    Gérer les produits
+                </h2>
+
+            </div>
+
+            <button class="btn btn-outline-white btn-small"
+                    id="closeAdmin">
+
+                Fermer
+
+            </button>
+
+        </div>
+
+
+        <!-- FORMULAIRE PRODUIT -->
+
+        <form id="productForm"
+              class="admin-form">
+
+            <div class="form-row">
+
+                <label>
+
+                    Nom du produit
+
+                    <input type="text"
+                           id="pName"
+                           placeholder="Nike Mercurial..."
+                           required>
+
+                </label>
+
+
+                <label>
+
+                    Prix (DH)
+
+                    <input type="number"
+                           id="pPrice"
+                           min="0"
+                           step="1"
+                           placeholder="799"
+                           required>
+
+                </label>
+
+            </div>
+
+
+            <div class="form-row">
+
+                <label>
+
+                    Catégorie
+
+                    <select id="pCategory"
+                            required>
+
+                        <option value="">
+                            Sélectionner
+                        </option>
+
+                        <option value="Crampons">
+                            Crampons
+                        </option>
+
+                        <option value="Tenues">
+                            Tenues
+                        </option>
+
+                        <option value="Socks">
+                            Socks silicone
+                        </option>
+
+                        <option value="Accessoires">
+                            Accessoires
+                        </option>
+
+                        <option value="Ballons">
+                            Ballons
+                        </option>
+
+                        <option value="Autres">
+                            Autres
+                        </option>
+
+                    </select>
+
+                </label>
+
+
+                <label>
+
+                    Tailles disponibles
+
+                    <input type="text"
+                           id="pSizes"
+                           placeholder="38, 39, 40, 41, 42, 43">
+
+                </label>
+
+            </div>
+
+
+            <!-- PHOTO -->
+
+            <div class="form-row">
+
+                <label class="full">
+
+                    Photo du produit
+
+                    <input type="file"
+                           id="pImageFile"
+                           accept="image/*">
+
+                </label>
+
+            </div>
+
+
+            <div class="form-row"
+                 id="imagePreviewRow"
+                 hidden>
+
+                <div class="full image-preview-wrap">
+
+                    <img id="imagePreview"
+                         class="image-preview"
+                         alt="Aperçu du produit">
+
+                    <button type="button"
+                            class="btn btn-outline-white btn-small"
+                            id="removeImage">
+
+                        Retirer la photo
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- URL IMAGE -->
+
+            <div class="form-row">
+
+                <label class="full">
+
+                    Ou URL de l'image
+
+                    <input type="url"
+                           id="pImage"
+                           placeholder="https://...">
+
+                </label>
+
+            </div>
+
+
+            <!-- DESCRIPTION -->
+
+            <div class="form-row">
+
+                <label class="full">
+
+                    Description
+
+                    <textarea id="pDesc"
+                              rows="4"
+                              placeholder="Décrivez le produit..."></textarea>
+
+                </label>
+
+            </div>
+
+
+            <div class="admin-actions">
+
+                <button type="submit"
+                        class="btn btn-primary">
+
+                    Ajouter le produit
+
+                </button>
+
+                <span class="admin-hint">
+
+                    Les produits sont sauvegardés
+                    dans ce navigateur.
+
+                </span>
+
+            </div>
+
+        </form>
+
+
+        <!-- PUBLICATION -->
+
+        <div class="publish-box">
+
+            <p class="section-label">
+                PUBLICATION
+            </p>
+
+            <p>
+                Pour rendre les produits visibles
+                à tous les visiteurs, téléchargez
+                le catalogue puis remplacez
+                <strong>products.json</strong>
+                sur votre hébergement.
+            </p>
+
+            <button type="button"
+                    class="btn btn-primary btn-small"
+                    id="exportCatalog">
+
+                Publier le catalogue
+
+            </button>
+
+        </div>
+
+
+        <!-- LISTE ADMIN -->
+
+        <div class="admin-list"
+             id="adminList">
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     COMMANDE
+===================================================== -->
+
+<section class="section order-section"
+         id="commande">
+
+    <div class="section-head">
+
+        <p class="section-label">
+            COMMANDE EN LIGNE
+        </p>
+
+        <h2>
+            COMMANDER VOTRE PRODUIT
+        </h2>
+
+        <p>
+            Remplissez le formulaire et
+            nous vous contacterons rapidement.
+        </p>
+
+    </div>
+
+
+    <div class="order-wrap">
+
+        <form id="orderForm"
+              class="order-form">
+
+            <div class="form-row">
+
+                <label>
+
+                    Nom complet
+
+                    <input type="text"
+                           id="oName"
+                           placeholder="Votre nom"
+                           required>
+
+                </label>
+
+
+                <label>
+
+                    Téléphone
+
+                    <input type="tel"
+                           id="oPhone"
+                           placeholder="06 00 00 00 00"
+                           required>
+
+                </label>
+
+            </div>
+
+
+            <div class="form-row">
+
+                <label>
+
+                    Produit
+
+                    <select id="oArticle"
+                            required>
+
+                        <option value="">
+                            Sélectionner un produit
+                        </option>
+
+                    </select>
+
+                </label>
+
+
+                <label>
+
+                    Taille
+
+                    <input type="text"
+                           id="oSize"
+                           placeholder="Ex : 42"
+                           required>
+
+                </label>
+
+            </div>
+
+
+            <div class="form-row">
+
+                <label>
+
+                    Quantité
+
+                    <input type="number"
+                           id="oQty"
+                           min="1"
+                           value="1"
+                           required>
+
+                </label>
+
+
+                <label>
+
+                    Ville
+
+                    <input type="text"
+                           id="oCity"
+                           placeholder="Marrakech"
+                           required>
+
+                </label>
+
+            </div>
+
+
+            <div class="form-row">
+
+                <label class="full">
+
+                    Adresse / lieu de livraison
+
+                    <input type="text"
+                           id="oAddress"
+                           placeholder="Votre adresse">
+
+                </label>
+
+            </div>
+
+
+            <div class="form-row">
+
+                <label class="full">
+
+                    Message
+
+                    <textarea id="oMessage"
+                              rows="4"
+                              placeholder="Couleur, modèle, informations supplémentaires..."></textarea>
+
+                </label>
+
+            </div>
+
+
+            <div class="order-actions">
+
+                <button type="submit"
+                        class="btn btn-primary">
+
+                    Envoyer la commande
+
+                </button>
+
+
+                <a href="#"
+                   id="whatsappBtn"
+                   class="btn btn-whatsapp"
+                   target="_blank"
+                   rel="noopener">
+
+                    Commander via WhatsApp
+
+                </a>
+
+            </div>
+
+
+            <p class="order-confirm"
+               id="orderConfirm"
+               hidden>
+
+                Merci ! Votre demande a bien
+                été enregistrée.
+
+            </p>
+
+        </form>
+
+
+        <aside class="order-side">
+
+            <p class="section-label">
+                XN-KODASSY
+            </p>
+
+            <h3>
+                COMMENT ÇA MARCHE ?
+            </h3>
+
+            <ul>
+
+                <li>
+                    01 — Choisissez votre produit
+                </li>
+
+                <li>
+                    02 — Sélectionnez votre taille
+                </li>
+
+                <li>
+                    03 — Remplissez vos coordonnées
+                </li>
+
+                <li>
+                    04 — Envoyez votre commande
+                </li>
+
+                <li>
+                    05 — Nous vous contactons
+                </li>
+
+            </ul>
+
+        </aside>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     CONTACT
+===================================================== -->
+
+<section class="contact-section"
+         id="contact">
+
+    <div class="contact-inner">
+
+        <div>
+
+            <p class="section-label">
+                CONTACT
+            </p>
+
+            <h2>
+                PRÊT À JOUER ?
+            </h2>
+
+            <p>
+                Une question sur une taille,
+                un produit ou une commande ?
+                Contactez-nous directement.
+            </p>
+
+        </div>
+
+
+        <div class="contact-links">
+
+            <a href="https://wa.me/212600000000"
+               target="_blank"
+               rel="noopener">
+
+                WhatsApp
+
+            </a>
+
+            <a href="mailto:contact@xn-kodassy.com">
+
+                Email
+
+            </a>
+
+            <a href="https://www.instagram.com/"
+               target="_blank"
+               rel="noopener">
+
+                Instagram
+
+            </a>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     FOOTER
+===================================================== -->
+
+<footer class="site-footer">
+
+    <div class="footer-inner">
+
+        <div>
+
+            <img src="images/WhatsApp Image 2026-09-09 at 01.29.00.jpeg"
+                 alt="XN-KODASSY"
+                 class="footer-logo">
+
+            <p>
+                Football. Style. Performance.
+            </p>
+
+        </div>
+
+
+        <div>
+
+            <h4>
+                Navigation
+            </h4>
+
+            <a href="#accueil">
+                Accueil
+            </a>
+
+            <a href="#produits">
+                Produits
+            </a>
+
+            <a href="#commande">
+                Commander
+            </a>
+
+        </div>
+
+
+        <div>
+
+            <h4>
+                Catégories
+            </h4>
+
+            <a href="#produits">
+                Crampons
+            </a>
+
+            <a href="#produits">
+                Tenues
+            </a>
+
+            <a href="#produits">
+                Socks
+            </a>
+
+            <a href="#produits">
+                Accessoires
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <div class="footer-bottom">
+
+        © <span id="year"></span>
+        XN-KODASSY.
+        Tous droits réservés.
+
+    </div>
+
+</footer>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>
