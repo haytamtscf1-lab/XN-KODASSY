@@ -684,23 +684,43 @@ function renderFilters() {
 
       button.textContent =
         category;
+button.addEventListener(
+  "click",
+  () => {
 
-      button.addEventListener(
-        "click",
-        () => {
-
-          activeFilter =
-            category;
-
-          renderFilters();
-
-          renderProducts();
-        }
+    const product =
+      products.find(
+        (item) =>
+          item.id ===
+          button.dataset.id
       );
 
-      collectionFilters.appendChild(
-        button
-      );
+    if (!product) {
+      return;
+    }
+
+    // اختيار المنتج
+    selectProductForOrder(product);
+
+    // الانتقال إلى قسم الطلب
+    const orderSection =
+      document.getElementById("commande");
+
+    if (orderSection) {
+
+      window.location.hash = "commande";
+
+      setTimeout(() => {
+
+        orderSection.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+
+      }, 100);
+    }
+  }
+);
     }
   );
 }
