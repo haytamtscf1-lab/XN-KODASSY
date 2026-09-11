@@ -1,1277 +1,1694 @@
-<!DOCTYPE html>
-<html lang="fr">
+// ============================================================
+// XN-KODASSY
+// Firebase + Firestore (version gratuite / GitHub Pages)
+// Les produits et prix sont partagés entre tous les visiteurs.
+// Les images sont hébergées dans le dossier images/ de GitHub.
+// ============================================================
 
-<head>
+import {
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 
-    <meta charset="UTF-8">
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
-    <title>XN-KODASSY | Football Shop</title>
 
-    <meta name="description"
-          content="XN-KODASSY - Chaussures, tenues et accessoires de football.">
+// ============================================================
+// FIREBASE CONFIG
+// ============================================================
 
-    <link rel="preconnect"
-          href="https://fonts.googleapis.com">
+const firebaseConfig = {
+  apiKey: "AIzaSyDSKK_yyGQvuUumDesEhNKS0ss7I3dYzqc",
+  authDomain: "xn-kodassy.firebaseapp.com",
+  projectId: "xn-kodassy",
+  storageBucket: "xn-kodassy.firebasestorage.app",
+  messagingSenderId: "587033328645",
+  appId: "1:587033328645:web:f707f0e3c858342b3d706c",
+  measurementId: "G-966SCVK8DH"
+};
 
-    <link rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossorigin>
 
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet">
+// ============================================================
+// INITIALISATION
+// ============================================================
 
-    <link rel="stylesheet"
-          href="style.css">
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-</head>
+const productsRef = collection(db, "products");
 
 
-<body>
+// ============================================================
+// SETTINGS
+// ============================================================
 
+const WHATSAPP_NUMBER = "212600000000";
 
-<!-- =====================================================
-     HEADER
-===================================================== -->
+let products = [];
+let activeFilter = "Tous";
+let currentUser = null;
 
-<header class="site-header"
-        id="top">
 
-    <div class="header-inner">
+// ============================================================
+// DOM
+// ============================================================
 
+const productGrid =
+  document.getElementById("productGrid");
 
-        <a href="#top"
-           class="brand">
+const emptyState =
+  document.getElementById("emptyState");
 
-            <img src="images/WhatsApp Image 2026-09-09 at 01.29.00.jpeg"
-                 alt="XN-KODASSY"
-                 class="brand-logo">
+const collectionFilters =
+  document.getElementById("collectionFilters");
 
-            <div class="brand-text">
 
-                <span>XN</span>-KODASSY
+const adminPanel =
+  document.getElementById("adminPanel");
 
-            </div>
+const adminList =
+  document.getElementById("adminList");
 
-        </a>
+const productForm =
+  document.getElementById("productForm");
 
 
-        <nav class="main-nav"
-             id="mainNav">
+const pName =
+  document.getElementById("pName");
 
-            <a href="#accueil">
-                Accueil
-            </a>
+const pPrice =
+  document.getElementById("pPrice");
 
-            <a href="#produits">
-                Produits
-            </a>
+const pCategory =
+  document.getElementById("pCategory");
 
-            <a href="#commande">
-                Commander
-            </a>
+const pSizes =
+  document.getElementById("pSizes");
 
-            <a href="#contact">
-                Contact
-            </a>
+const pImageFile =
+  document.getElementById("pImageFile");
 
-            <a href="#"
-               id="adminToggleLink"
-               class="nav-admin">
+const pImage =
+  document.getElementById("pImage");
 
-                Espace gérant
+const pDesc =
+  document.getElementById("pDesc");
 
-            </a>
 
-        </nav>
+const imagePreview =
+  document.getElementById("imagePreview");
 
+const imagePreviewRow =
+  document.getElementById("imagePreviewRow");
 
-        <button class="burger"
-                id="burgerBtn"
-                type="button"
-                aria-label="Ouvrir le menu"
-                aria-expanded="false"
-                aria-controls="mainNav">
+const removeImage =
+  document.getElementById("removeImage");
 
-            <span></span>
-            <span></span>
-            <span></span>
 
-        </button>
+const exportCatalog =
+  document.getElementById("exportCatalog");
 
-    </div>
 
-</header>
+const adminToggleLink =
+  document.getElementById("adminToggleLink");
 
+const closeAdmin =
+  document.getElementById("closeAdmin");
 
 
-<!-- =====================================================
-     HERO
-===================================================== -->
+const oName =
+  document.getElementById("oName");
 
-<section class="hero"
-         id="accueil">
+const oPhone =
+  document.getElementById("oPhone");
 
-    <div class="hero-background"></div>
+const oArticle =
+  document.getElementById("oArticle");
 
+const oSize =
+  document.getElementById("oSize");
 
-    <div class="hero-content">
+const oQty =
+  document.getElementById("oQty");
 
-        <p class="hero-small">
+const oCity =
+  document.getElementById("oCity");
 
-            XN-KODASSY FOOTBALL SHOP
+const oAddress =
+  document.getElementById("oAddress");
 
-        </p>
+const oMessage =
+  document.getElementById("oMessage");
 
 
-        <h1>
+const whatsappBtn =
+  document.getElementById("whatsappBtn");
 
-            PLAY HARD.<br>
+const orderConfirm =
+  document.getElementById("orderConfirm");
 
-            <span>
-                LOOK PRO.
-            </span>
 
-        </h1>
+// ============================================================
+// HELPERS
+// ============================================================
 
+function escapeHtml(value) {
 
-        <p class="hero-description">
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
-            Chaussures, tenues et accessoires de football
-            pour les joueurs qui veulent donner le maximum
-            sur le terrain.
+}
 
-        </p>
 
+function formatPrice(price) {
 
-        <div class="hero-actions">
+  const number = Number(price);
 
+  if (Number.isNaN(number)) {
+    return "0 DH";
+  }
 
-            <a href="#produits"
-               class="btn btn-primary">
+  return `${number.toLocaleString("fr-FR")} DH`;
 
-                Voir nos produits
+}
 
-            </a>
 
+function normalizeImageUrl(value) {
 
-            <a href="#commande"
-               class="btn btn-outline">
+  const url =
+    String(value ?? "").trim();
 
-                Commander
+  if (!url) {
+    return "";
+  }
 
-            </a>
+  if (
+    !url.startsWith("http://") &&
+    !url.startsWith("https://") &&
+    !url.startsWith("/") &&
+    !url.startsWith("./") &&
+    !url.startsWith("data:")
+  ) {
 
+    return `./${url}`;
 
-        </div>
+  }
 
-    </div>
+  return url;
 
+}
 
-    <div class="hero-ball">
 
-        ⚽
+// ============================================================
+// IMAGE INPUT
+// ============================================================
 
-    </div>
+if (pImageFile) {
 
-</section>
+  const fileLabel =
+    pImageFile.closest("label");
 
+  if (fileLabel) {
+    fileLabel.hidden = true;
+  }
 
+  pImageFile.disabled = true;
 
-<!-- =====================================================
-     SERVICES
-===================================================== -->
+}
 
-<section class="features">
 
+if (imagePreviewRow) {
+  imagePreviewRow.hidden = true;
+}
 
-    <div class="feature">
 
-        <div class="feature-icon">
-            ⚽
-        </div>
+if (removeImage) {
 
-        <h3>
-            Football
-        </h3>
+  removeImage.addEventListener("click", () => {
 
-        <p>
+    if (pImage) {
+      pImage.value = "";
+    }
 
-            Des produits sélectionnés
-            pour les passionnés du football.
+    if (imagePreview) {
+      imagePreview.removeAttribute("src");
+    }
 
-        </p>
+    if (imagePreviewRow) {
+      imagePreviewRow.hidden = true;
+    }
 
-    </div>
+  });
 
+}
 
 
-    <div class="feature">
+if (pImage) {
 
-        <div class="feature-icon">
-            👟
-        </div>
+  pImage.addEventListener("input", () => {
 
-        <h3>
-            Qualité
-        </h3>
+    const url =
+      normalizeImageUrl(pImage.value);
 
-        <p>
+    if (!url) {
 
-            Des chaussures et équipements
-            adaptés à votre style de jeu.
+      if (imagePreviewRow) {
+        imagePreviewRow.hidden = true;
+      }
 
-        </p>
+      if (imagePreview) {
+        imagePreview.removeAttribute("src");
+      }
 
-    </div>
+      return;
 
+    }
 
+    if (imagePreview) {
 
-    <div class="feature">
+      imagePreview.src = url;
 
-        <div class="feature-icon">
-            📦
-        </div>
+      imagePreview.onerror = () => {
 
-        <h3>
-            Commande en ligne
-        </h3>
+        if (imagePreviewRow) {
+          imagePreviewRow.hidden = true;
+        }
 
-        <p>
+      };
 
-            Choisissez votre produit et
-            envoyez votre demande rapidement.
+      imagePreview.onload = () => {
 
-        </p>
+        if (imagePreviewRow) {
+          imagePreviewRow.hidden = false;
+        }
 
-    </div>
+      };
 
+    }
 
+  });
 
-    <div class="feature">
+}
 
-        <div class="feature-icon">
-            📱
-        </div>
 
-        <h3>
-            WhatsApp
-        </h3>
+// ============================================================
+// FIRESTORE - PRODUITS EN TEMPS RÉEL
+// ============================================================
 
-        <p>
+onSnapshot(
+  productsRef,
 
-            Commandez directement avec
-            notre service WhatsApp.
+  (snapshot) => {
 
-        </p>
+    products =
+      snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data()
+      }));
 
-    </div>
 
+    products.sort((a, b) => {
 
-</section>
+      const dateA =
+        a.createdAt?.seconds || 0;
 
+      const dateB =
+        b.createdAt?.seconds || 0;
 
+      return dateB - dateA;
 
-<!-- =====================================================
-     PRODUITS
-===================================================== -->
+    });
 
-<section class="section products-section"
-         id="produits">
 
+    renderFilters();
+    renderProducts();
+    renderOrderOptions();
+    renderAdminList();
 
-    <div class="section-head">
+  },
 
+  (error) => {
 
-        <p class="section-label">
+    console.error(
+      "Firestore error:",
+      error
+    );
 
+    if (emptyState) {
+
+      emptyState.hidden = false;
+
+      emptyState.textContent =
+        "Impossible de charger les produits. Vérifiez la connexion Firebase.";
+
+    }
+
+  }
+);
+
+
+// ============================================================
+// FILTERS
+// ============================================================
+
+function renderFilters() {
+
+  if (!collectionFilters) {
+    return;
+  }
+
+
+  const categories = [
+    "Tous",
+
+    ...new Set(
+      products
+        .map((product) => product.category)
+        .filter(Boolean)
+    )
+  ];
+
+
+  if (!categories.includes(activeFilter)) {
+    activeFilter = "Tous";
+  }
+
+
+  collectionFilters.innerHTML = "";
+
+
+  categories.forEach((category) => {
+
+    const button =
+      document.createElement("button");
+
+    button.type = "button";
+
+    button.className =
+      category === activeFilter
+        ? "filter-btn active"
+        : "filter-btn";
+
+    button.textContent = category;
+
+
+    button.addEventListener(
+      "click",
+      () => {
+
+        activeFilter = category;
+
+        renderFilters();
+
+        renderProducts();
+
+      }
+    );
+
+
+    collectionFilters.appendChild(button);
+
+  });
+
+}
+
+
+// ============================================================
+// PRODUCTS
+// ============================================================
+
+function getFilteredProducts() {
+
+  if (activeFilter === "Tous") {
+    return products;
+  }
+
+  return products.filter(
+    (product) =>
+      product.category === activeFilter
+  );
+
+}
+
+
+function renderProducts() {
+
+  if (!productGrid) {
+    return;
+  }
+
+
+  const filteredProducts =
+    getFilteredProducts();
+
+
+  productGrid.innerHTML = "";
+
+
+  if (filteredProducts.length === 0) {
+
+    if (emptyState) {
+
+      emptyState.hidden = false;
+
+      emptyState.textContent =
+        "Aucun produit disponible pour le moment.";
+
+    }
+
+    return;
+
+  }
+
+
+  if (emptyState) {
+    emptyState.hidden = true;
+  }
+
+
+  filteredProducts.forEach((product) => {
+
+    const card =
+      document.createElement("article");
+
+    card.className =
+      "product-card";
+
+
+    const imageUrl =
+      normalizeImageUrl(product.image);
+
+
+    const image =
+      imageUrl
+
+        ? `
+          <img
+            src="${escapeHtml(imageUrl)}"
+            alt="${escapeHtml(product.name)}"
+            loading="lazy"
+            onerror="
+              this.parentElement.innerHTML =
+              '<div class=&quot;product-no-image&quot;>Image indisponible</div>';
+            "
+          >
+        `
+
+        : `
+          <div class="product-no-image">
             XN-KODASSY
-
-        </p>
-
-
-        <h2>
-
-            NOS PRODUITS
-
-        </h2>
+          </div>
+        `;
 
 
-        <p>
+    const sizes =
+      Array.isArray(product.sizes)
 
-            Découvrez notre sélection football.
+        ? product.sizes
+            .map(escapeHtml)
+            .join(" · ")
 
-        </p>
+        : escapeHtml(
+            product.sizes || ""
+          );
 
 
-    </div>
+    card.innerHTML = `
+
+      <div class="product-image">
+
+        ${image}
+
+      </div>
 
 
+      <div class="product-info">
 
-    <!-- FILTRES -->
+        <div class="product-category">
 
-    <div class="collection-filters"
-         id="collectionFilters">
+          ${escapeHtml(
+            product.category || ""
+          )}
 
-        <button class="filter-chip is-active"
-                type="button"
-                data-filter="Tous">
+        </div>
 
-            Tous
+
+        <h3>
+
+          ${escapeHtml(
+            product.name || ""
+          )}
+
+        </h3>
+
+
+        <div class="product-price">
+
+          ${formatPrice(
+            product.price
+          )}
+
+        </div>
+
+
+        ${
+          sizes
+            ? `
+              <div class="product-sizes">
+                ${sizes}
+              </div>
+            `
+            : ""
+        }
+
+
+        ${
+          product.desc
+            ? `
+              <p class="product-desc">
+                ${escapeHtml(
+                  product.desc
+                )}
+              </p>
+            `
+            : ""
+        }
+
+
+        <button
+          type="button"
+          class="btn btn-primary order-product"
+          data-id="${escapeHtml(
+            product.id
+          )}"
+        >
+
+          Commander
 
         </button>
 
-    </div>
 
+      </div>
 
+    `;
 
-    <!-- GRILLE PRODUITS -->
 
-    <div class="product-grid"
-         id="productGrid">
+    productGrid.appendChild(card);
 
-    </div>
+  });
 
 
+  // ==========================================================
+  // BOUTON COMMANDER
+  // ==========================================================
 
-    <p class="empty-state"
-       id="emptyState"
-       hidden>
+  document
+    .querySelectorAll(".order-product")
+    .forEach((button) => {
 
-        Aucun produit disponible
-        pour le moment.
+      button.addEventListener(
+        "click",
+        () => {
 
-    </p>
+          const product =
+            products.find(
+              (item) =>
+                item.id ===
+                button.dataset.id
+            );
 
 
-</section>
+          if (!product) {
+            return;
+          }
 
 
+          // Sélectionner automatiquement
+          // le produit dans le formulaire
 
-<!-- =====================================================
-     ESPACE GERANT
-===================================================== -->
+          selectProductForOrder(product);
 
-<section class="admin-panel"
-         id="adminPanel"
-         hidden>
 
+          // Trouver le formulaire
 
-    <div class="admin-inner">
+          const orderSection =
+            document.getElementById(
+              "commande"
+            );
 
 
-        <div class="admin-head">
+          if (orderSection) {
 
+            // Mettre l'ancre dans l'URL
 
-            <div>
+            window.location.hash =
+              "commande";
 
 
-                <p class="section-label">
+            // Faire défiler jusqu'au formulaire
 
-                    ADMINISTRATION
+            setTimeout(() => {
 
-                </p>
+              orderSection.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+              });
 
+            }, 100);
 
-                <h2>
+          }
 
-                    Gérer les produits
+        }
+      );
 
-                </h2>
+    });
 
+}
 
-            </div>
 
+// ============================================================
+// ORDER FORM
+// ============================================================
 
-            <button class="btn btn-outline-white btn-small"
-                    id="closeAdmin"
-                    type="button">
+function selectProductForOrder(product) {
 
-                Fermer
+  if (oArticle) {
 
-            </button>
+    oArticle.value =
+      product.name;
 
+    oArticle.dispatchEvent(
+      new Event("change")
+    );
 
-        </div>
+  }
 
 
+  if (oSize) {
 
-        <!-- =================================================
-             FORMULAIRE PRODUIT
-        ================================================= -->
+    const availableSizes =
+      Array.isArray(product.sizes)
+        ? product.sizes
+        : [];
 
 
-        <form id="productForm"
-              class="admin-form">
+    oSize.innerHTML = "";
 
 
-            <div class="form-row">
+    if (availableSizes.length > 0) {
 
+      availableSizes.forEach(
+        (size) => {
 
-                <label>
+          const option =
+            document.createElement(
+              "option"
+            );
 
-                    Nom du produit
+          option.value = size;
 
+          option.textContent =
+            size;
 
-                    <input type="text"
-                           id="pName"
-                           placeholder="Nike Mercurial..."
-                           required>
+          oSize.appendChild(
+            option
+          );
 
+        }
+      );
 
-                </label>
+    } else {
 
+      const option =
+        document.createElement(
+          "option"
+        );
 
+      option.value = "";
 
-                <label>
+      option.textContent =
+        "Taille unique";
 
-                    Prix (DH)
+      oSize.appendChild(
+        option
+      );
 
+    }
 
-                    <input type="number"
-                           id="pPrice"
-                           min="0"
-                           step="1"
-                           placeholder="799"
-                           required>
+  }
 
+}
 
-                </label>
 
+// ============================================================
+// ORDER OPTIONS
+// ============================================================
 
-            </div>
+function renderOrderOptions() {
 
+  if (!oArticle) {
+    return;
+  }
 
 
-            <div class="form-row">
+  const previousValue =
+    oArticle.value;
 
 
-                <label>
+  oArticle.innerHTML = "";
 
-                    Catégorie
 
+  if (products.length === 0) {
 
-                    <select id="pCategory"
-                            required>
+    const option =
+      document.createElement(
+        "option"
+      );
 
+    option.value = "";
 
-                        <option value="">
+    option.textContent =
+      "Aucun produit disponible";
 
-                            Sélectionner
+    oArticle.appendChild(option);
 
-                        </option>
+    updateOrderSizes();
 
+    return;
 
-                        <option value="Crampons">
+  }
 
-                            Crampons
 
-                        </option>
+  products.forEach((product) => {
 
+    const option =
+      document.createElement(
+        "option"
+      );
 
-                        <option value="Tenues">
 
-                            Tenues
+    option.value =
+      product.name;
 
-                        </option>
 
+    option.textContent =
+      `${product.name} — ${formatPrice(
+        product.price
+      )}`;
 
-                        <option value="Socks">
 
-                            Socks silicone
+    oArticle.appendChild(
+      option
+    );
 
-                        </option>
+  });
 
 
-                        <option value="Accessoires">
+  if (
+    previousValue &&
+    products.some(
+      (product) =>
+        product.name ===
+        previousValue
+    )
+  ) {
 
-                            Accessoires
+    oArticle.value =
+      previousValue;
 
-                        </option>
+  }
 
 
-                        <option value="Ballons">
+  updateOrderSizes();
 
-                            Ballons
+}
 
-                        </option>
 
+// ============================================================
+// ORDER SIZES
+// ============================================================
 
-                        <option value="Autres">
+function updateOrderSizes() {
 
-                            Autres
+  if (!oArticle || !oSize) {
+    return;
+  }
 
-                        </option>
 
+  const product =
+    products.find(
+      (item) =>
+        item.name ===
+        oArticle.value
+    );
 
-                    </select>
 
+  oSize.innerHTML = "";
 
-                </label>
 
+  if (!product) {
+    return;
+  }
 
 
-                <label>
+  const sizes =
+    Array.isArray(product.sizes)
+      ? product.sizes
+      : [];
 
-                    Tailles disponibles
 
+  if (sizes.length === 0) {
 
-                    <input type="text"
-                           id="pSizes"
-                           placeholder="38, 39, 40, 41, 42, 43">
+    const option =
+      document.createElement(
+        "option"
+      );
 
+    option.value = "";
 
-                </label>
+    option.textContent =
+      "Taille unique";
 
+    oSize.appendChild(
+      option
+    );
 
-            </div>
+    return;
 
+  }
 
 
-            <!-- =================================================
-                 PHOTO
-            ================================================= -->
+  sizes.forEach((size) => {
 
+    const option =
+      document.createElement(
+        "option"
+      );
 
-            <div class="form-row">
+    option.value = size;
 
+    option.textContent =
+      size;
 
-                <label class="full">
+    oSize.appendChild(
+      option
+    );
 
+  });
 
-                    Photo du produit
+}
 
 
-                    <input type="file"
-                           id="pImageFile"
-                           accept="image/*">
+if (oArticle) {
 
+  oArticle.addEventListener(
+    "change",
+    updateOrderSizes
+  );
 
-                </label>
+}
 
 
-            </div>
+// ============================================================
+// WHATSAPP
+// ============================================================
 
+if (whatsappBtn) {
 
+  whatsappBtn.addEventListener(
+    "click",
+    (event) => {
 
-            <div class="form-row"
-                 id="imagePreviewRow"
-                 hidden>
+      event.preventDefault();
 
 
-                <div class="full image-preview-wrap">
+      const name =
+        oName?.value.trim() || "";
 
+      const phone =
+        oPhone?.value.trim() || "";
 
-                    <img id="imagePreview"
-                         class="image-preview"
-                         alt="Aperçu du produit">
+      const article =
+        oArticle?.value.trim() || "";
 
+      const size =
+        oSize?.value.trim() || "";
 
-                    <button type="button"
-                            class="btn btn-outline-white btn-small"
-                            id="removeImage">
+      const qty =
+        oQty?.value || "1";
 
-                        Retirer la photo
+      const city =
+        oCity?.value.trim() || "";
 
-                    </button>
+      const address =
+        oAddress?.value.trim() || "";
 
+      const message =
+        oMessage?.value.trim() || "";
 
-                </div>
 
+      if (
+        !name ||
+        !phone ||
+        !article
+      ) {
 
-            </div>
+        alert(
+          "Veuillez remplir votre nom, téléphone et article."
+        );
 
+        return;
 
+      }
 
-            <!-- =================================================
-                 IMAGE GITHUB
-            ================================================= -->
 
+      const text = `
 
-            <div class="form-row">
+Bonjour XN-KODASSY 👋
 
+Je souhaite commander :
 
-                <label class="full">
+Article : ${article}
+Taille : ${size || "Non précisée"}
+Quantité : ${qty}
 
+Nom : ${name}
+Téléphone : ${phone}
+Ville : ${city}
+Adresse : ${address}
 
-                    Chemin de l'image
+Message :
+${message}
 
+      `.trim();
 
-                    <input type="text"
-                           id="pImage"
-                           placeholder="images/PREDATOR BYDA.jpeg"
-                           autocomplete="off">
 
+      const url =
+        `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+          text
+        )}`;
 
-                    <small>
 
-                        Entrez le chemin de l'image présente
-                        dans le dossier <strong>images</strong>
-                        de votre dépôt GitHub.
+      window.open(
+        url,
+        "_blank"
+      );
 
-                        Exemple :
-                        <strong>images/PREDATOR BYDA.jpeg</strong>
 
-                    </small>
+      if (orderConfirm) {
+        orderConfirm.hidden =
+          false;
+      }
 
+    }
+  );
 
-                </label>
+}
 
 
-            </div>
+// ============================================================
+// AUTHENTIFICATION GERANT
+// ============================================================
 
+onAuthStateChanged(
+  auth,
+  (user) => {
 
+    currentUser = user;
 
-            <!-- =================================================
-                 DESCRIPTION
-            ================================================= -->
 
+    if (user) {
 
-            <div class="form-row">
+      console.log(
+        "Manager connecté :",
+        user.email
+      );
 
+    } else {
 
-                <label class="full">
+      console.log(
+        "Aucun manager connecté."
+      );
 
+    }
 
-                    Description
+  }
+);
 
 
-                    <textarea id="pDesc"
-                              rows="4"
-                              placeholder="Décrivez le produit..."></textarea>
+// ============================================================
+// ESPACE GERANT
+// ============================================================
 
+if (adminToggleLink) {
 
-                </label>
+  adminToggleLink.addEventListener(
+    "click",
+    async (event) => {
 
+      event.preventDefault();
 
-            </div>
 
+      if (currentUser) {
 
+        openAdminPanel();
 
-            <!-- =================================================
-                 ACTIONS ADMIN
-            ================================================= -->
+        return;
 
+      }
 
-            <div class="admin-actions">
 
+      const email =
+        prompt(
+          "Email du gérant :"
+        );
 
-                <button type="submit"
-                        class="btn btn-primary">
 
-                    Ajouter le produit
+      if (!email) {
+        return;
+      }
 
-                </button>
 
+      const password =
+        prompt(
+          "Mot de passe du gérant :"
+        );
 
-                <span class="admin-hint">
 
-                    Les produits sont enregistrés
-                    dans Firebase et visibles
-                    sur tous les appareils.
+      if (!password) {
+        return;
+      }
 
-                </span>
 
+      try {
 
-            </div>
+        await signInWithEmailAndPassword(
+          auth,
+          email.trim(),
+          password
+        );
 
 
-        </form>
+        openAdminPanel();
 
 
+      } catch (error) {
 
-        <!-- =================================================
-             PUBLICATION
-        ================================================= -->
+        console.error(error);
 
 
-        <div class="publish-box">
+        alert(
+          "Connexion impossible.\n\n" +
+          "Vérifiez l'email et le mot de passe."
+        );
 
+      }
 
-            <p class="section-label">
+    }
+  );
 
-                PUBLICATION
+}
 
-            </p>
 
+// ============================================================
+// OPEN ADMIN PANEL
+// ============================================================
 
-            <p>
+function openAdminPanel() {
 
-                Les produits et les prix sont
-                enregistrés automatiquement dans
-                Firebase Firestore.
+  if (!adminPanel) {
+    return;
+  }
 
-                Ils sont donc synchronisés et visibles
-                pour tous les visiteurs, sur ordinateur
-                et téléphone.
 
-                Les images, elles, sont hébergées dans
-                le dossier <strong>images</strong>
-                de GitHub.
+  adminPanel.hidden = false;
 
-            </p>
 
+  adminPanel.scrollIntoView({
+    behavior: "smooth"
+  });
 
-            <button type="button"
-                    class="btn btn-primary btn-small"
-                    id="exportCatalog">
 
-                Exporter le catalogue
+  renderAdminList();
 
-            </button>
+}
 
 
-        </div>
+// ============================================================
+// CLOSE ADMIN PANEL
+// ============================================================
 
+if (closeAdmin) {
 
+  closeAdmin.addEventListener(
+    "click",
+    async () => {
 
-        <!-- =================================================
-             LISTE ADMIN
-        ================================================= -->
+      if (adminPanel) {
+        adminPanel.hidden = true;
+      }
 
 
-        <div class="admin-list"
-             id="adminList">
+      try {
 
-        </div>
+        await signOut(auth);
 
+      } catch (error) {
 
-    </div>
+        console.error(error);
 
+      }
 
-</section>
+    }
+  );
 
+}
 
 
-<!-- =====================================================
-     COMMANDE
-===================================================== -->
+// ============================================================
+// ADD PRODUCT -> FIRESTORE
+// ============================================================
 
-<section class="section order-section"
-         id="commande">
+if (productForm) {
 
+  productForm.addEventListener(
+    "submit",
+    async (event) => {
 
-    <div class="section-head">
+      event.preventDefault();
 
 
-        <p class="section-label">
+      if (!currentUser) {
 
-            COMMANDE EN LIGNE
+        alert(
+          "Vous devez être connecté comme gérant."
+        );
 
-        </p>
+        return;
 
+      }
 
-        <h2>
 
-            COMMANDER VOTRE PRODUIT
+      const name =
+        pName?.value.trim() || "";
 
-        </h2>
 
+      const price =
+        Number(pPrice?.value);
 
-        <p>
 
-            Remplissez le formulaire et
-            nous vous contacterons rapidement.
+      const category =
+        pCategory?.value.trim() || "";
 
-        </p>
 
+      const sizesText =
+        pSizes?.value.trim() || "";
 
-    </div>
 
+      const description =
+        pDesc?.value.trim() || "";
 
 
-    <div class="order-wrap">
+      const imageUrl =
+        normalizeImageUrl(
+          pImage?.value || ""
+        );
 
 
-        <form id="orderForm"
-              class="order-form">
+      if (!name) {
 
+        alert(
+          "Veuillez saisir le nom du produit."
+        );
 
-            <div class="form-row">
+        return;
 
+      }
 
-                <label>
 
-                    Nom complet
+      if (Number.isNaN(price)) {
 
+        alert(
+          "Veuillez saisir un prix valide."
+        );
 
-                    <input type="text"
-                           id="oName"
-                           placeholder="Votre nom"
-                           required>
+        return;
 
+      }
 
-                </label>
 
+      const sizes =
+        sizesText
 
+          ? sizesText
+              .split(",")
+              .map(
+                (size) =>
+                  size.trim()
+              )
+              .filter(Boolean)
 
-                <label>
+          : [];
 
-                    Téléphone
 
+      const submitButton =
+        productForm.querySelector(
+          'button[type="submit"]'
+        );
 
-                    <input type="tel"
-                           id="oPhone"
-                           placeholder="06 00 00 00 00"
-                           required>
 
+      if (submitButton) {
 
-                </label>
+        submitButton.disabled =
+          true;
 
+        submitButton.textContent =
+          "Enregistrement...";
 
-            </div>
+      }
 
 
+      try {
 
-            <div class="form-row">
+        await addDoc(
+          productsRef,
+          {
 
+            name,
 
-                <label>
+            price,
 
-                    Produit
+            category,
 
+            sizes,
 
-                    <select id="oArticle"
-                            required>
+            image:
+              imageUrl,
 
+            imagePath:
+              "",
 
-                        <option value="">
+            desc:
+              description,
 
-                            Sélectionner un produit
+            createdAt:
+              serverTimestamp()
 
-                        </option>
+          }
+        );
 
 
-                    </select>
+        alert(
+          "Produit ajouté avec succès ✅"
+        );
 
 
-                </label>
+        productForm.reset();
 
 
+        if (imagePreviewRow) {
+          imagePreviewRow.hidden =
+            true;
+        }
 
-                <label>
 
-                    Taille
+        if (imagePreview) {
+          imagePreview.removeAttribute(
+            "src"
+          );
+        }
 
 
-                    <input type="text"
-                           id="oSize"
-                           placeholder="Ex : 42"
-                           required>
+      } catch (error) {
 
+        console.error(
+          "Erreur ajout produit:",
+          error
+        );
 
-                </label>
 
+        alert(
+          "Erreur lors de l'ajout du produit.\n\n" +
+          error.message
+        );
 
-            </div>
 
+      } finally {
 
+        if (submitButton) {
 
-            <div class="form-row">
+          submitButton.disabled =
+            false;
 
+          submitButton.textContent =
+            "Ajouter le produit";
 
-                <label>
+        }
 
-                    Quantité
+      }
 
+    }
+  );
 
-                    <input type="number"
-                           id="oQty"
-                           min="1"
-                           value="1"
-                           required>
+}
 
 
-                </label>
+// ============================================================
+// ADMIN PRODUCT LIST
+// ============================================================
 
+function renderAdminList() {
 
+  if (!adminList) {
+    return;
+  }
 
-                <label>
 
-                    Ville
+  adminList.innerHTML = "";
 
 
-                    <input type="text"
-                           id="oCity"
-                           placeholder="Marrakech"
-                           required>
+  if (products.length === 0) {
 
+    adminList.innerHTML =
+      "<p>Aucun produit pour le moment.</p>";
 
-                </label>
+    return;
 
+  }
 
-            </div>
 
+  products.forEach((product) => {
 
+    const item =
+      document.createElement(
+        "div"
+      );
 
-            <div class="form-row">
 
+    item.className =
+      "admin-product-item";
 
-                <label class="full">
 
-                    Adresse / lieu de livraison
+    item.innerHTML = `
 
+      <div>
 
-                    <input type="text"
-                           id="oAddress"
-                           placeholder="Votre adresse">
+        <strong>
 
+          ${escapeHtml(
+            product.name
+          )}
 
-                </label>
+        </strong>
 
 
-            </div>
+        <span>
 
+          ${formatPrice(
+            product.price
+          )}
 
+        </span>
 
-            <div class="form-row">
+      </div>
 
 
-                <label class="full">
+      <button
+        type="button"
+        class="delete-product"
+        data-id="${escapeHtml(
+          product.id
+        )}"
+      >
 
-                    Message
+        Supprimer
 
+      </button>
 
-                    <textarea id="oMessage"
-                              rows="4"
-                              placeholder="Couleur, modèle, informations supplémentaires..."></textarea>
+    `;
 
 
-                </label>
+    adminList.appendChild(
+      item
+    );
 
+  });
 
-            </div>
 
+  document
+    .querySelectorAll(
+      ".delete-product"
+    )
+    .forEach((button) => {
 
+      button.addEventListener(
+        "click",
+        async () => {
 
-            <div class="order-actions">
+          const productId =
+            button.dataset.id;
 
 
-                <button type="submit"
-                        class="btn btn-primary">
+          const product =
+            products.find(
+              (item) =>
+                item.id ===
+                productId
+            );
 
-                    Envoyer la commande
 
-                </button>
+          if (!product) {
+            return;
+          }
 
 
+          const confirmed =
+            confirm(
+              `Supprimer "${product.name}" ?`
+            );
 
-                <a href="#"
-                   id="whatsappBtn"
-                   class="btn btn-whatsapp"
-                   target="_blank"
-                   rel="noopener">
 
-                    Commander via WhatsApp
+          if (!confirmed) {
+            return;
+          }
 
-                </a>
 
+          try {
 
-            </div>
+            await deleteDoc(
+              doc(
+                db,
+                "products",
+                productId
+              )
+            );
 
 
+            alert(
+              "Produit supprimé ✅"
+            );
 
-            <p class="order-confirm"
-               id="orderConfirm"
-               hidden>
 
-                Merci ! Votre demande a bien
-                été enregistrée.
+          } catch (error) {
 
-            </p>
+            console.error(error);
 
 
-        </form>
+            alert(
+              "Erreur lors de la suppression.\n\n" +
+              error.message
+            );
 
+          }
 
+        }
+      );
 
-        <aside class="order-side">
+    });
 
+}
 
-            <p class="section-label">
 
-                XN-KODASSY
+// ============================================================
+// EXPORT CATALOG
+// ============================================================
 
-            </p>
+if (exportCatalog) {
 
+  exportCatalog.textContent =
+    "Exporter une sauvegarde";
 
-            <h3>
 
-                COMMENT ÇA MARCHE ?
+  exportCatalog.addEventListener(
+    "click",
+    () => {
 
-            </h3>
+      const exportProducts =
+        products.map(
+          (product) => ({
 
+            id:
+              product.id,
 
-            <ul>
+            name:
+              product.name || "",
 
+            price:
+              product.price || 0,
 
-                <li>
+            category:
+              product.category || "",
 
-                    01 — Choisissez votre produit
+            sizes:
+              product.sizes || [],
 
-                </li>
+            image:
+              product.image || "",
 
+            desc:
+              product.desc || ""
 
-                <li>
+          })
+        );
 
-                    02 — Sélectionnez votre taille
 
-                </li>
+      const json =
+        JSON.stringify(
+          exportProducts,
+          null,
+          2
+        );
 
 
-                <li>
+      const blob =
+        new Blob(
+          [json],
+          {
+            type:
+              "application/json"
+          }
+        );
 
-                    03 — Remplissez vos coordonnées
 
-                </li>
+      const url =
+        URL.createObjectURL(
+          blob
+        );
 
 
-                <li>
+      const link =
+        document.createElement(
+          "a"
+        );
 
-                    04 — Envoyez votre commande
 
-                </li>
+      link.href = url;
 
 
-                <li>
+      link.download =
+        "xn-kodassy-products-backup.json";
 
-                    05 — Nous vous contactons
 
-                </li>
+      document.body.appendChild(
+        link
+      );
 
 
-            </ul>
+      link.click();
 
 
-        </aside>
+      link.remove();
 
 
-    </div>
+      URL.revokeObjectURL(
+        url
+      );
 
+    }
+  );
 
-</section>
+}
 
 
+// ============================================================
+// MOBILE MENU
+// ============================================================
 
-<!-- =====================================================
-     CONTACT
-===================================================== -->
+const burger =
+  document.getElementById(
+    "burgerBtn"
+  );
 
-<section class="contact-section"
-         id="contact">
+const nav =
+  document.getElementById(
+    "mainNav"
+  );
 
 
-    <div class="contact-inner">
+if (burger && nav) {
 
+  burger.addEventListener(
+    "click",
+    () => {
 
-        <div>
+      const isOpen =
+        nav.classList.toggle(
+          "open"
+        );
 
 
-            <p class="section-label">
+      burger.setAttribute(
+        "aria-expanded",
+        String(isOpen)
+      );
 
-                CONTACT
+    }
+  );
 
-            </p>
+}
 
 
-            <h2>
+// ============================================================
+// YEAR
+// ============================================================
 
-                PRÊT À JOUER ?
+const yearElement =
+  document.getElementById(
+    "year"
+  );
 
-            </h2>
 
+if (yearElement) {
 
-            <p>
+  yearElement.textContent =
+    new Date().getFullYear();
 
-                Une question sur une taille,
-                un produit ou une commande ?
-                Contactez-nous directement.
+}
 
-            </p>
 
+// ============================================================
+// START
+// ============================================================
 
-        </div>
-
-
-
-        <div class="contact-links">
-
-
-            <a href="https://wa.me/212600000000"
-               target="_blank"
-               rel="noopener">
-
-                WhatsApp
-
-            </a>
-
-
-
-            <a href="mailto:contact@xn-kodassy.com">
-
-                Email
-
-            </a>
-
-
-
-            <a href="https://www.instagram.com/"
-               target="_blank"
-               rel="noopener">
-
-                Instagram
-
-            </a>
-
-
-        </div>
-
-
-    </div>
-
-
-</section>
-
-
-
-<!-- =====================================================
-     FOOTER
-===================================================== -->
-
-<footer class="site-footer">
-
-
-    <div class="footer-inner">
-
-
-        <div>
-
-
-            <img src="images/WhatsApp Image 2026-09-09 at 01.29.00.jpeg"
-                 alt="XN-KODASSY"
-                 class="footer-logo">
-
-
-            <p>
-
-                Football. Style. Performance.
-
-            </p>
-
-
-        </div>
-
-
-
-        <div>
-
-
-            <h4>
-
-                Navigation
-
-            </h4>
-
-
-            <a href="#accueil">
-
-                Accueil
-
-            </a>
-
-
-            <a href="#produits">
-
-                Produits
-
-            </a>
-
-
-            <a href="#commande">
-
-                Commander
-
-            </a>
-
-
-        </div>
-
-
-
-        <div>
-
-
-            <h4>
-
-                Catégories
-
-            </h4>
-
-
-            <a href="#produits">
-
-                Crampons
-
-            </a>
-
-
-            <a href="#produits">
-
-                Tenues
-
-            </a>
-
-
-            <a href="#produits">
-
-                Socks
-
-            </a>
-
-
-            <a href="#produits">
-
-                Accessoires
-
-            </a>
-
-
-        </div>
-
-
-    </div>
-
-
-
-    <div class="footer-bottom">
-
-
-        ©️
-
-        <span id="year"></span>
-
-        XN-KODASSY.
-
-        Tous droits réservés.
-
-
-    </div>
-
-
-</footer>
-
-
-
-<!-- =====================================================
-     JAVASCRIPT
-===================================================== -->
-
-<script type="module"
-        src="script.js?v=3"></script>
-
-
-</body>
-
-</html>
+console.log(
+  "XN-KODASSY Firebase + Firestore chargé ✅"
+);
