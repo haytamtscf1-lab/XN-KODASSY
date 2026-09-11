@@ -1,12 +1,6 @@
 // ============================================================
 // XN-KODASSY
 // Firebase + Firestore + GitHub Images
-// Version gratuite - sans Firebase Storage
-// ============================================================
-
-
-// ============================================================
-// FIREBASE IMPORTS
 // ============================================================
 
 import {
@@ -50,9 +44,9 @@ const firebaseConfig = {
 // INITIALIZE FIREBASE
 // ============================================================
 
-let app;
-let auth;
-let db;
+let app = null;
+let auth = null;
+let db = null;
 
 try {
 
@@ -183,7 +177,7 @@ const orderConfirm =
 
 
 // ============================================================
-// GLOBAL ERROR HANDLING
+// GLOBAL ERRORS
 // ============================================================
 
 window.addEventListener(
@@ -197,7 +191,6 @@ window.addEventListener(
 
   }
 );
-
 
 window.addEventListener(
   "unhandledrejection",
@@ -228,56 +221,7 @@ function escapeHtml(value) {
 
 
 // ============================================================
-// IMAGE URL NORMALIZATION
-// ============================================================
-
-function normalizeImageUrl(value) {
-
-  const image =
-    String(value || "").trim();
-
-  if (!image) {
-    return "";
-  }
-
-  // Data URL
-  if (
-    image.startsWith("data:image/")
-  ) {
-    return image;
-  }
-
-  // Full URL
-  if (
-    image.startsWith("http://") ||
-    image.startsWith("https://")
-  ) {
-    return image;
-  }
-
-  // Relative path
-  let cleanPath =
-    image
-      .replace(/^\.\/+/, "")
-      .replace(/^\/+/, "");
-
-  // Encode spaces and special characters
-  const parts =
-    cleanPath
-      .split("/")
-      .map(
-        (part) =>
-          encodeURIComponent(
-            decodeURIComponentSafe(part)
-          )
-      );
-
-  return "./" + parts.join("/");
-}
-
-
-// ============================================================
-// SAFE URL DECODER
+// SAFE DECODER
 // ============================================================
 
 function decodeURIComponentSafe(value) {
@@ -289,7 +233,64 @@ function decodeURIComponentSafe(value) {
   } catch {
 
     return value;
+
   }
+}
+
+
+// ============================================================
+// IMAGE URL
+// ============================================================
+
+function normalizeImageUrl(value) {
+
+  const image =
+    String(value || "").trim();
+
+  if (!image) {
+
+    return "";
+
+  }
+
+
+  if (
+    image.startsWith("data:image/")
+  ) {
+
+    return image;
+
+  }
+
+
+  if (
+    image.startsWith("http://") ||
+    image.startsWith("https://")
+  ) {
+
+    return image;
+
+  }
+
+
+  let cleanPath =
+    image
+      .replace(/^\.\/+/, "")
+      .replace(/^\/+/, "");
+
+
+  const parts =
+    cleanPath
+      .split("/")
+      .map(
+        (part) =>
+          encodeURIComponent(
+            decodeURIComponentSafe(part)
+          )
+      );
+
+
+  return "./" + parts.join("/");
 }
 
 
@@ -305,6 +306,7 @@ function formatPrice(price) {
   if (Number.isNaN(number)) {
 
     return "0 DH";
+
   }
 
   return `${number.toLocaleString("fr-FR")} DH`;
@@ -312,7 +314,7 @@ function formatPrice(price) {
 
 
 // ============================================================
-// FIRESTORE PRODUCTS
+// FIRESTORE
 // ============================================================
 
 let productsRef = null;
@@ -324,17 +326,12 @@ if (db) {
       db,
       "products"
     );
+
 }
 
 
 // ============================================================
-// ADMIN AUTHENTICATION
-// ============================================================
-//
-// IMPORTANT:
-// This listener is intentionally placed early so that
-// "Espace gérant" remains functional even if another
-// initialization part encounters an error.
+// ADMIN LOGIN
 // ============================================================
 
 if (adminToggleLink) {
@@ -345,17 +342,14 @@ if (adminToggleLink) {
 
       event.preventDefault();
 
-      console.log(
-        "Espace gérant cliqué"
-      );
-
-      // Already connected
       if (currentUser) {
 
         openAdminPanel();
 
         return;
+
       }
+
 
       const email =
         prompt(
@@ -365,7 +359,9 @@ if (adminToggleLink) {
       if (!email) {
 
         return;
+
       }
+
 
       const password =
         prompt(
@@ -375,7 +371,9 @@ if (adminToggleLink) {
       if (!password) {
 
         return;
+
       }
+
 
       if (!auth) {
 
@@ -384,7 +382,9 @@ if (adminToggleLink) {
         );
 
         return;
+
       }
+
 
       try {
 
@@ -394,11 +394,14 @@ if (adminToggleLink) {
           password
         );
 
+
         alert(
           "Connexion réussie ✅"
         );
 
+
         openAdminPanel();
+
 
       } catch (error) {
 
@@ -407,8 +410,10 @@ if (adminToggleLink) {
           error
         );
 
+
         let message =
           "Connexion impossible.\n\n";
+
 
         if (
           error.code ===
@@ -455,12 +460,17 @@ if (adminToggleLink) {
           message +=
             error.message ||
             "Erreur inconnue.";
+
         }
 
+
         alert(message);
+
       }
+
     }
   );
+
 }
 
 
@@ -477,6 +487,7 @@ if (auth) {
       currentUser =
         user || null;
 
+
       if (user) {
 
         console.log(
@@ -489,40 +500,45 @@ if (auth) {
         console.log(
           "Aucun manager connecté."
         );
+
       }
+
     }
   );
+
 }
 
 
 // ============================================================
-// OPEN ADMIN PANEL
+// OPEN ADMIN
 // ============================================================
 
 function openAdminPanel() {
 
   if (!adminPanel) {
 
-    console.error(
-      "adminPanel introuvable dans index.html"
-    );
-
     return;
+
   }
 
-  adminPanel.hidden = false;
+
+  adminPanel.hidden =
+    false;
+
 
   renderAdminList();
+
 
   adminPanel.scrollIntoView({
     behavior: "smooth",
     block: "start"
   });
+
 }
 
 
 // ============================================================
-// CLOSE ADMIN PANEL
+// CLOSE ADMIN
 // ============================================================
 
 if (closeAdmin) {
@@ -533,8 +549,11 @@ if (closeAdmin) {
 
       if (adminPanel) {
 
-        adminPanel.hidden = true;
+        adminPanel.hidden =
+          true;
+
       }
+
 
       if (auth) {
 
@@ -548,15 +567,19 @@ if (closeAdmin) {
             "Erreur déconnexion:",
             error
           );
+
         }
+
       }
+
     }
   );
+
 }
 
 
 // ============================================================
-// FIRESTORE - REAL TIME PRODUCTS
+// FIRESTORE REAL-TIME
 // ============================================================
 
 if (productsRef) {
@@ -569,12 +592,15 @@ if (productsRef) {
       products =
         snapshot.docs.map(
           (item) => ({
+
             id: item.id,
+
             ...item.data()
+
           })
         );
 
-      // Sort newest first
+
       products.sort(
         (a, b) => {
 
@@ -585,12 +611,15 @@ if (productsRef) {
             b.createdAt?.seconds || 0;
 
           return dateB - dateA;
+
         }
       );
+
 
       console.log(
         `${products.length} produit(s) chargé(s) ✅`
       );
+
 
       renderFilters();
 
@@ -599,7 +628,9 @@ if (productsRef) {
       renderOrderOptions();
 
       renderAdminList();
+
     },
+
 
     (error) => {
 
@@ -608,25 +639,21 @@ if (productsRef) {
         error
       );
 
+
       if (emptyState) {
 
-        emptyState.hidden = false;
+        emptyState.hidden =
+          false;
 
         emptyState.textContent =
           "Impossible de charger les produits.";
+
       }
 
-      if (
-        error.code ===
-        "permission-denied"
-      ) {
-
-        console.error(
-          "Firestore Rules refusent la lecture."
-        );
-      }
     }
+
   );
+
 }
 
 
@@ -639,7 +666,9 @@ function renderFilters() {
   if (!collectionFilters) {
 
     return;
+
   }
+
 
   const categories = [
     "Tous",
@@ -653,6 +682,7 @@ function renderFilters() {
     )
   ];
 
+
   if (
     !categories.includes(
       activeFilter
@@ -661,10 +691,13 @@ function renderFilters() {
 
     activeFilter =
       "Tous";
+
   }
+
 
   collectionFilters.innerHTML =
     "";
+
 
   categories.forEach(
     (category) => {
@@ -674,55 +707,46 @@ function renderFilters() {
           "button"
         );
 
+
       button.type =
         "button";
+
 
       button.className =
         category === activeFilter
           ? "filter-btn active"
           : "filter-btn";
 
+
       button.textContent =
         category;
-button.addEventListener(
-  "click",
-  () => {
 
-    const product =
-      products.find(
-        (item) =>
-          item.id ===
-          button.dataset.id
+
+      // IMPORTANT:
+      // Le bouton filtre ne doit PAS
+      // contenir la logique Commander.
+      button.addEventListener(
+        "click",
+        () => {
+
+          activeFilter =
+            category;
+
+          renderFilters();
+
+          renderProducts();
+
+        }
       );
 
-    if (!product) {
-      return;
-    }
 
-    // اختيار المنتج
-    selectProductForOrder(product);
+      collectionFilters.appendChild(
+        button
+      );
 
-    // الانتقال إلى قسم الطلب
-    const orderSection =
-      document.getElementById("commande");
-
-    if (orderSection) {
-
-      window.location.hash = "commande";
-
-      setTimeout(() => {
-
-        orderSection.scrollIntoView({
-          behavior: "smooth",
-          block: "start"
-        });
-
-      }, 100);
-    }
-  }
-);
     }
   );
+
 }
 
 
@@ -738,18 +762,21 @@ function getFilteredProducts() {
   ) {
 
     return products;
+
   }
+
 
   return products.filter(
     (product) =>
       product.category ===
       activeFilter
   );
+
 }
 
 
 // ============================================================
-// PRODUCTS DISPLAY
+// PRODUCTS
 // ============================================================
 
 function renderProducts() {
@@ -757,13 +784,17 @@ function renderProducts() {
   if (!productGrid) {
 
     return;
+
   }
+
 
   const filteredProducts =
     getFilteredProducts();
 
+
   productGrid.innerHTML =
     "";
+
 
   if (
     filteredProducts.length ===
@@ -774,16 +805,21 @@ function renderProducts() {
 
       emptyState.hidden =
         false;
+
     }
 
     return;
+
   }
+
 
   if (emptyState) {
 
     emptyState.hidden =
       true;
+
   }
+
 
   filteredProducts.forEach(
     (product) => {
@@ -793,13 +829,16 @@ function renderProducts() {
           "article"
         );
 
+
       card.className =
         "product-card";
+
 
       const imageUrl =
         normalizeImageUrl(
           product.image
         );
+
 
       const image =
         imageUrl
@@ -849,23 +888,29 @@ function renderProducts() {
         <div class="product-info">
 
           <div class="product-category">
+
             ${escapeHtml(
               product.category || ""
             )}
+
           </div>
 
 
           <h3>
+
             ${escapeHtml(
               product.name || ""
             )}
+
           </h3>
 
 
           <div class="product-price">
+
             ${formatPrice(
               product.price
             )}
+
           </div>
 
 
@@ -873,7 +918,9 @@ function renderProducts() {
             sizes
               ? `
                 <div class="product-sizes">
+
                   ${sizes}
+
                 </div>
               `
               : ""
@@ -884,9 +931,11 @@ function renderProducts() {
             product.desc
               ? `
                 <p class="product-desc">
+
                   ${escapeHtml(
                     product.desc
                   )}
+
                 </p>
               `
               : ""
@@ -900,145 +949,173 @@ function renderProducts() {
               product.id
             )}"
           >
+
             Commander
+
           </button>
 
         </div>
 
       `;
 
+
       productGrid.appendChild(
         card
       );
+
     }
   );
 
-
-  document
-    .querySelectorAll(
-      ".order-product"
-    )
-    .forEach(
-      (button) => {
-
-        button.addEventListener(
-          "click",
-          () => {
-
-            const product =
-              products.find(
-                (item) =>
-                  item.id ===
-                  button.dataset.id
-              );
-
-            if (!product) {
-
-              return;
-            }
-
-            selectProductForOrder(
-              product
-            );
-
-           const orderSection =
-              document.getElementById(
-                  "commande"
-            );
-
-            if (orderSection) {
-
-              orderSection.scrollIntoView(
-                {
-                  behavior:
-                    "smooth"
-                }
-              );
-            }
-          }
-        );
-      }
-    );
 }
 
 
 // ============================================================
-// SELECT PRODUCT FOR ORDER
+// COMMANDER BUTTON
+// ============================================================
+//
+// Event delegation.
+// This is more reliable than recreating listeners every time
+// the products are filtered or refreshed.
+// ============================================================
+
+if (productGrid) {
+
+  productGrid.addEventListener(
+    "click",
+    (event) => {
+
+      const button =
+        event.target.closest(
+          ".order-product"
+        );
+
+
+      if (!button) {
+
+        return;
+
+      }
+
+
+      console.log(
+        "Bouton Commander cliqué ✅"
+      );
+
+
+      const productId =
+        button.dataset.id;
+
+
+      const product =
+        products.find(
+          (item) =>
+            item.id ===
+            productId
+        );
+
+
+      if (!product) {
+
+        console.error(
+          "Produit introuvable:",
+          productId
+        );
+
+        return;
+
+      }
+
+
+      // Sélectionner automatiquement
+      // le produit dans le formulaire.
+      selectProductForOrder(
+        product
+      );
+
+
+      const orderSection =
+        document.getElementById(
+          "commande"
+        );
+
+
+      if (!orderSection) {
+
+        console.error(
+          "Section #commande introuvable."
+        );
+
+        return;
+
+      }
+
+
+      // Mettre le hash.
+      window.location.hash =
+        "commande";
+
+
+      // Scroll.
+      setTimeout(
+        () => {
+
+          orderSection.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+
+
+          // Focus sur le nom.
+          if (oName) {
+
+            setTimeout(
+              () => {
+
+                oName.focus();
+
+              },
+              500
+            );
+
+          }
+
+        },
+        100
+      );
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// SELECT PRODUCT
 // ============================================================
 
 function selectProductForOrder(
   product
 ) {
 
+  if (!product) {
+
+    return;
+
+  }
+
+
   if (oArticle) {
 
     oArticle.value =
       product.name;
 
-    oArticle.dispatchEvent(
-      new Event("change")
-    );
   }
 
 
-  if (oSize) {
+  updateOrderSizes(
+    product
+  );
 
-    const availableSizes =
-      Array.isArray(
-        product.sizes
-      )
-
-        ? product.sizes
-        : [];
-
-
-    oSize.innerHTML =
-      "";
-
-
-    if (
-      availableSizes.length >
-      0
-    ) {
-
-      availableSizes.forEach(
-        (size) => {
-
-          const option =
-            document.createElement(
-              "option"
-            );
-
-          option.value =
-            size;
-
-          option.textContent =
-            size;
-
-          oSize.appendChild(
-            option
-          );
-        }
-      );
-
-    } else {
-
-      const option =
-        document.createElement(
-          "option"
-        );
-
-      option.value =
-        "";
-
-      option.textContent =
-        "Taille unique";
-
-      oSize.appendChild(
-        option
-      );
-    }
-  }
 }
 
 
@@ -1051,13 +1128,35 @@ function renderOrderOptions() {
   if (!oArticle) {
 
     return;
+
   }
+
 
   const previousValue =
     oArticle.value;
 
+
   oArticle.innerHTML =
     "";
+
+
+  const placeholder =
+    document.createElement(
+      "option"
+    );
+
+
+  placeholder.value =
+    "";
+
+
+  placeholder.textContent =
+    "Sélectionner un produit";
+
+
+  oArticle.appendChild(
+    placeholder
+  );
 
 
   products.forEach(
@@ -1068,17 +1167,21 @@ function renderOrderOptions() {
           "option"
         );
 
+
       option.value =
         product.name;
+
 
       option.textContent =
         `${product.name} — ${formatPrice(
           product.price
         )}`;
 
+
       oArticle.appendChild(
         option
       );
+
     }
   );
 
@@ -1094,18 +1197,28 @@ function renderOrderOptions() {
 
     oArticle.value =
       previousValue;
+
   }
 
 
   updateOrderSizes();
+
 }
 
 
 // ============================================================
-// UPDATE ORDER SIZES
+// UPDATE ORDER SIZE
+// ============================================================
+//
+// IMPORTANT:
+// #oSize is an INPUT in index.html.
+// Therefore we do NOT add <option> elements to it.
+// We simply display the available sizes as a placeholder.
 // ============================================================
 
-function updateOrderSizes() {
+function updateOrderSizes(
+  selectedProduct = null
+) {
 
   if (
     !oArticle ||
@@ -1113,22 +1226,29 @@ function updateOrderSizes() {
   ) {
 
     return;
+
   }
 
+
   const product =
+    selectedProduct ||
     products.find(
       (item) =>
         item.name ===
         oArticle.value
     );
 
-  oSize.innerHTML =
-    "";
-
 
   if (!product) {
 
+    oSize.value =
+      "";
+
+    oSize.placeholder =
+      "Ex : 42";
+
     return;
+
   }
 
 
@@ -1142,48 +1262,28 @@ function updateOrderSizes() {
 
 
   if (
-    sizes.length ===
-    0
+    sizes.length > 0
   ) {
 
-    const option =
-      document.createElement(
-        "option"
-      );
-
-    option.value =
+    // On garde l'input texte.
+    oSize.value =
       "";
 
-    option.textContent =
-      "Taille unique";
+    oSize.placeholder =
+      `Tailles : ${sizes.join(
+        ", "
+      )}`;
 
-    oSize.appendChild(
-      option
-    );
+  } else {
 
-    return;
+    oSize.value =
+      "";
+
+    oSize.placeholder =
+      "Taille";
+
   }
 
-
-  sizes.forEach(
-    (size) => {
-
-      const option =
-        document.createElement(
-          "option"
-        );
-
-      option.value =
-        size;
-
-      option.textContent =
-        size;
-
-      oSize.appendChild(
-        option
-      );
-    }
-  );
 }
 
 
@@ -1195,13 +1295,18 @@ if (oArticle) {
 
   oArticle.addEventListener(
     "change",
-    updateOrderSizes
+    () => {
+
+      updateOrderSizes();
+
+    }
   );
+
 }
 
 
 // ============================================================
-// WHATSAPP ORDER
+// WHATSAPP
 // ============================================================
 
 if (whatsappBtn) {
@@ -1212,33 +1317,41 @@ if (whatsappBtn) {
 
       event.preventDefault();
 
+
       const name =
         oName?.value.trim() ||
         "";
+
 
       const phone =
         oPhone?.value.trim() ||
         "";
 
+
       const article =
         oArticle?.value.trim() ||
         "";
+
 
       const size =
         oSize?.value.trim() ||
         "";
 
+
       const qty =
         oQty?.value ||
         "1";
+
 
       const city =
         oCity?.value.trim() ||
         "";
 
+
       const address =
         oAddress?.value.trim() ||
         "";
+
 
       const message =
         oMessage?.value.trim() ||
@@ -1256,6 +1369,7 @@ if (whatsappBtn) {
         );
 
         return;
+
       }
 
 
@@ -1270,11 +1384,11 @@ Quantité : ${qty}
 
 Nom : ${name}
 Téléphone : ${phone}
-Ville : ${city}
-Adresse : ${address}
+Ville : ${city || "Non précisée"}
+Adresse : ${address || "Non précisée"}
 
 Message :
-${message}
+${message || "Aucun message supplémentaire."}
       `.trim();
 
 
@@ -1286,7 +1400,8 @@ ${message}
 
       window.open(
         url,
-        "_blank"
+        "_blank",
+        "noopener,noreferrer"
       );
 
 
@@ -1294,21 +1409,61 @@ ${message}
 
         orderConfirm.hidden =
           false;
+
       }
+
     }
   );
+
 }
 
 
 // ============================================================
-// IMAGE FILE INPUT
+// SEND ORDER FORM
 // ============================================================
-//
-// IMPORTANT:
-// We no longer upload this file to Firebase Storage.
-// We only keep the preview locally.
-// The actual product image should be uploaded manually
-// to the GitHub "images" folder.
+
+if (document.getElementById("orderForm")) {
+
+  const orderForm =
+    document.getElementById(
+      "orderForm"
+    );
+
+
+  orderForm.addEventListener(
+    "submit",
+    (event) => {
+
+      event.preventDefault();
+
+
+      if (orderConfirm) {
+
+        orderConfirm.hidden =
+          false;
+
+        orderConfirm.textContent =
+          "Merci ! Votre demande a bien été enregistrée. Vous pouvez également nous contacter via WhatsApp.";
+
+      }
+
+
+      // On ouvre également WhatsApp
+      // pour que la commande arrive directement.
+      if (whatsappBtn) {
+
+        whatsappBtn.click();
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// IMAGE FILE PREVIEW
 // ============================================================
 
 if (pImageFile) {
@@ -1320,9 +1475,11 @@ if (pImageFile) {
       const file =
         pImageFile.files?.[0];
 
+
       if (!file) {
 
         return;
+
       }
 
 
@@ -1336,10 +1493,13 @@ if (pImageFile) {
           "Veuillez sélectionner une image."
         );
 
+
         pImageFile.value =
           "";
 
+
         return;
+
       }
 
 
@@ -1358,6 +1518,7 @@ if (pImageFile) {
 
             imagePreview.src =
               editingImageData;
+
           }
 
 
@@ -1365,20 +1526,24 @@ if (pImageFile) {
 
             imagePreviewRow.hidden =
               false;
+
           }
+
         };
 
 
       reader.readAsDataURL(
         file
       );
+
     }
   );
+
 }
 
 
 // ============================================================
-// IMAGE URL PREVIEW
+// IMAGE PATH PREVIEW
 // ============================================================
 
 if (pImage) {
@@ -1390,15 +1555,18 @@ if (pImage) {
       const value =
         pImage.value.trim();
 
+
       if (!value) {
 
         if (imagePreviewRow) {
 
           imagePreviewRow.hidden =
             true;
+
         }
 
         return;
+
       }
 
 
@@ -1412,6 +1580,7 @@ if (pImage) {
 
         imagePreview.src =
           imageUrl;
+
       }
 
 
@@ -1419,9 +1588,12 @@ if (pImage) {
 
         imagePreviewRow.hidden =
           false;
+
       }
+
     }
   );
+
 }
 
 
@@ -1443,6 +1615,7 @@ if (removeImage) {
 
         pImageFile.value =
           "";
+
       }
 
 
@@ -1450,6 +1623,7 @@ if (removeImage) {
 
         pImage.value =
           "";
+
       }
 
 
@@ -1457,6 +1631,7 @@ if (removeImage) {
 
         imagePreviewRow.hidden =
           true;
+
       }
 
 
@@ -1465,9 +1640,12 @@ if (removeImage) {
         imagePreview.removeAttribute(
           "src"
         );
+
       }
+
     }
   );
+
 }
 
 
@@ -1491,6 +1669,7 @@ if (productForm) {
         );
 
         return;
+
       }
 
 
@@ -1501,6 +1680,7 @@ if (productForm) {
         );
 
         return;
+
       }
 
 
@@ -1535,10 +1715,6 @@ if (productForm) {
         "";
 
 
-      // ------------------------------------------------------
-      // VALIDATION
-      // ------------------------------------------------------
-
       if (!name) {
 
         alert(
@@ -1546,6 +1722,7 @@ if (productForm) {
         );
 
         return;
+
       }
 
 
@@ -1558,6 +1735,7 @@ if (productForm) {
         );
 
         return;
+
       }
 
 
@@ -1588,55 +1766,42 @@ if (productForm) {
 
         submitButton.textContent =
           "Enregistrement...";
+
       }
 
 
       try {
 
-        // ----------------------------------------------------
-        // IMAGE
-        // ----------------------------------------------------
-        //
-        // No Firebase Storage.
-        //
-        // The value entered in #pImage is saved directly
-        // to Firestore.
-        //
-        // Example:
-        // images/PREDATOR BYDA.jpeg
-        //
-        // The image itself must exist in GitHub.
-        // ----------------------------------------------------
-
-        let finalImage =
+        const finalImage =
           normalizeImageUrl(
             imageInput
           );
 
 
-        // ----------------------------------------------------
-        // SAVE PRODUCT TO FIRESTORE
-        // ----------------------------------------------------
-
         await addDoc(
           productsRef,
           {
+
             name,
+
             price,
+
             category,
+
             sizes,
 
             image:
               finalImage,
 
             imagePath:
-              "",
+              imageInput,
 
             desc:
               description,
 
             createdAt:
               serverTimestamp()
+
           }
         );
 
@@ -1646,11 +1811,8 @@ if (productForm) {
         );
 
 
-        // ----------------------------------------------------
-        // RESET FORM
-        // ----------------------------------------------------
-
         productForm.reset();
+
 
         editingImageData =
           null;
@@ -1660,6 +1822,7 @@ if (productForm) {
 
           imagePreviewRow.hidden =
             true;
+
         }
 
 
@@ -1668,6 +1831,7 @@ if (productForm) {
           imagePreview.removeAttribute(
             "src"
           );
+
         }
 
 
@@ -1696,12 +1860,11 @@ if (productForm) {
           message +=
             error.message ||
             "Erreur inconnue.";
+
         }
 
 
-        alert(
-          message
-        );
+        alert(message);
 
 
       } finally {
@@ -1713,15 +1876,19 @@ if (productForm) {
 
           submitButton.textContent =
             "Ajouter le produit";
+
         }
+
       }
+
     }
   );
+
 }
 
 
 // ============================================================
-// ADMIN PRODUCT LIST
+// ADMIN LIST
 // ============================================================
 
 function renderAdminList() {
@@ -1729,6 +1896,7 @@ function renderAdminList() {
   if (!adminList) {
 
     return;
+
   }
 
 
@@ -1745,6 +1913,7 @@ function renderAdminList() {
       "<p>Aucun produit pour le moment.</p>";
 
     return;
+
   }
 
 
@@ -1766,15 +1935,19 @@ function renderAdminList() {
         <div>
 
           <strong>
+
             ${escapeHtml(
               product.name
             )}
+
           </strong>
 
           <span>
+
             ${formatPrice(
               product.price
             )}
+
           </span>
 
         </div>
@@ -1787,7 +1960,9 @@ function renderAdminList() {
             product.id
           )}"
         >
+
           Supprimer
+
         </button>
 
       `;
@@ -1796,11 +1971,12 @@ function renderAdminList() {
       adminList.appendChild(
         item
       );
+
     }
   );
 
 
-  document
+  adminList
     .querySelectorAll(
       ".delete-product"
     )
@@ -1818,6 +1994,7 @@ function renderAdminList() {
               );
 
               return;
+
             }
 
 
@@ -1836,6 +2013,7 @@ function renderAdminList() {
             if (!product) {
 
               return;
+
             }
 
 
@@ -1848,18 +2026,11 @@ function renderAdminList() {
             if (!confirmed) {
 
               return;
+
             }
 
 
             try {
-
-              // ------------------------------------------------
-              // DELETE FIRESTORE DOCUMENT
-              // ------------------------------------------------
-              //
-              // No Storage deletion anymore.
-              // The image remains in GitHub.
-              // ------------------------------------------------
 
               await deleteDoc(
                 doc(
@@ -1887,11 +2058,15 @@ function renderAdminList() {
                 "Erreur lors de la suppression.\n\n" +
                 error.message
               );
+
             }
+
           }
         );
+
       }
     );
+
 }
 
 
@@ -1929,6 +2104,7 @@ if (exportCatalog) {
 
             desc:
               product.desc || ""
+
           })
         );
 
@@ -1985,8 +2161,10 @@ if (exportCatalog) {
       URL.revokeObjectURL(
         url
       );
+
     }
   );
+
 }
 
 
@@ -1995,13 +2173,14 @@ if (exportCatalog) {
 // ============================================================
 
 const burger =
-  document.querySelector(
-    ".burger"
+  document.getElementById(
+    "burgerBtn"
   );
 
+
 const nav =
-  document.querySelector(
-    ".nav"
+  document.getElementById(
+    "mainNav"
   );
 
 
@@ -2014,11 +2193,48 @@ if (
     "click",
     () => {
 
-      nav.classList.toggle(
-        "open"
+      const isOpen =
+        nav.classList.toggle(
+          "open"
+        );
+
+
+      burger.setAttribute(
+        "aria-expanded",
+        String(isOpen)
       );
+
     }
   );
+
+
+  // Fermer le menu après
+  // avoir choisi une section.
+  nav.querySelectorAll(
+    "a[href^='#']"
+  ).forEach(
+    (link) => {
+
+      link.addEventListener(
+        "click",
+        () => {
+
+          nav.classList.remove(
+            "open"
+          );
+
+
+          burger.setAttribute(
+            "aria-expanded",
+            "false"
+          );
+
+        }
+      );
+
+    }
+  );
+
 }
 
 
@@ -2036,6 +2252,7 @@ if (yearElement) {
 
   yearElement.textContent =
     new Date().getFullYear();
+
 }
 
 
@@ -2053,6 +2270,10 @@ console.log(
 
 console.log(
   "Mode: Firestore + GitHub Images"
+);
+
+console.log(
+  "WhatsApp: ACTIVÉ ✅"
 );
 
 console.log(
