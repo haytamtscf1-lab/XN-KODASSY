@@ -1,11 +1,8 @@
 // ============================================================
-// XN-KODASSY
-// Firebase + Firestore + GitHub Images
+// XN-KODASSY — Firebase + Firestore + GitHub Images
 // ============================================================
 
-import {
-  initializeApp
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 
 import {
   getAuth,
@@ -19,14 +16,14 @@ import {
   collection,
   addDoc,
   deleteDoc,
+  updateDoc,
   doc,
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
-
 // ============================================================
-// FIREBASE CONFIG
+// FIREBASE
 // ============================================================
 
 const firebaseConfig = {
@@ -39,178 +36,79 @@ const firebaseConfig = {
   measurementId: "G-966SCVK8DH"
 };
 
-
-// ============================================================
-// INITIALIZE FIREBASE
-// ============================================================
-
 let app = null;
 let auth = null;
 let db = null;
 
 try {
-
   app = initializeApp(firebaseConfig);
-
   auth = getAuth(app);
-
   db = getFirestore(app);
-
   console.log("Firebase initialisé ✅");
-
 } catch (error) {
-
-  console.error(
-    "Erreur initialisation Firebase:",
-    error
-  );
-
-  alert(
-    "Erreur de connexion à Firebase.\n\n" +
-    error.message
-  );
+  console.error("Erreur initialisation Firebase:", error);
+  alert("Erreur de connexion à Firebase.\n\n" + error.message);
 }
 
-
 // ============================================================
-// SETTINGS
+// SETTINGS / STATE
 // ============================================================
 
 const WHATSAPP_NUMBER = "212600000000";
 
 let products = [];
+let orders = [];
 let activeFilter = "Tous";
 let currentUser = null;
-let editingImageData = null;
-
+let unsubscribeOrders = null;
 
 // ============================================================
 // DOM
 // ============================================================
 
-const productGrid =
-  document.getElementById("productGrid");
+const productGrid = document.getElementById("productGrid");
+const emptyState = document.getElementById("emptyState");
+const collectionFilters = document.getElementById("collectionFilters");
 
-const emptyState =
-  document.getElementById("emptyState");
+const adminPanel = document.getElementById("adminPanel");
+const adminList = document.getElementById("adminList");
+const productForm = document.getElementById("productForm");
 
-const collectionFilters =
-  document.getElementById("collectionFilters");
+const pName = document.getElementById("pName");
+const pPrice = document.getElementById("pPrice");
+const pCategory = document.getElementById("pCategory");
+const pSizes = document.getElementById("pSizes");
+const pImageFile = document.getElementById("pImageFile");
+const pImage = document.getElementById("pImage");
+const pDesc = document.getElementById("pDesc");
+const imagePreview = document.getElementById("imagePreview");
+const imagePreviewRow = document.getElementById("imagePreviewRow");
+const removeImage = document.getElementById("removeImage");
+const exportCatalog = document.getElementById("exportCatalog");
 
-const adminPanel =
-  document.getElementById("adminPanel");
+const adminToggleLink = document.getElementById("adminToggleLink");
+const closeAdmin = document.getElementById("closeAdmin");
 
-const adminList =
-  document.getElementById("adminList");
+const oName = document.getElementById("oName");
+const oPhone = document.getElementById("oPhone");
+const oArticle = document.getElementById("oArticle");
+const oSize = document.getElementById("oSize");
+const oQty = document.getElementById("oQty");
+const oCity = document.getElementById("oCity");
+const oAddress = document.getElementById("oAddress");
+const oMessage = document.getElementById("oMessage");
+const whatsappBtn = document.getElementById("whatsappBtn");
+const orderConfirm = document.getElementById("orderConfirm");
+const orderForm = document.getElementById("orderForm");
 
-const productForm =
-  document.getElementById("productForm");
-
-const pName =
-  document.getElementById("pName");
-
-const pPrice =
-  document.getElementById("pPrice");
-
-const pCategory =
-  document.getElementById("pCategory");
-
-const pSizes =
-  document.getElementById("pSizes");
-
-const pImageFile =
-  document.getElementById("pImageFile");
-
-const pImage =
-  document.getElementById("pImage");
-
-const pDesc =
-  document.getElementById("pDesc");
-
-const imagePreview =
-  document.getElementById("imagePreview");
-
-const imagePreviewRow =
-  document.getElementById("imagePreviewRow");
-
-const removeImage =
-  document.getElementById("removeImage");
-
-const exportCatalog =
-  document.getElementById("exportCatalog");
-
-const adminToggleLink =
-  document.getElementById("adminToggleLink");
-
-const closeAdmin =
-  document.getElementById("closeAdmin");
-
-const oName =
-  document.getElementById("oName");
-
-const oPhone =
-  document.getElementById("oPhone");
-
-const oArticle =
-  document.getElementById("oArticle");
-
-const oSize =
-  document.getElementById("oSize");
-
-const oQty =
-  document.getElementById("oQty");
-
-const oCity =
-  document.getElementById("oCity");
-
-const oAddress =
-  document.getElementById("oAddress");
-
-const oMessage =
-  document.getElementById("oMessage");
-
-const whatsappBtn =
-  document.getElementById("whatsappBtn");
-
-const orderConfirm =
-  document.getElementById("orderConfirm");
-
-
-// ============================================================
-// GLOBAL ERRORS
-// ============================================================
-
-window.addEventListener(
-  "error",
-  (event) => {
-
-    console.error(
-      "Erreur JavaScript:",
-      event.error || event.message
-    );
-
-  }
-);
-
-window.addEventListener(
-  "unhandledrejection",
-  (event) => {
-
-    console.error(
-      "Promise non gérée:",
-      event.reason
-    );
-
-  }
-);
-
+const productsRef = db ? collection(db, "products") : null;
+const ordersRef = db ? collection(db, "orders") : null;
 
 // ============================================================
 // HELPERS
 // ============================================================
 
 function escapeHtml(value) {
-
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -219,123 +117,136 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-
-// ============================================================
-// SAFE DECODER
-// ============================================================
-
 function decodeURIComponentSafe(value) {
-
   try {
-
     return decodeURIComponent(value);
-
   } catch {
-
     return value;
-
   }
 }
 
-
-// ============================================================
-// IMAGE URL
-// ============================================================
-
 function normalizeImageUrl(value) {
+  const image = String(value || "").trim();
 
-  const image =
-    String(value || "").trim();
+  if (!image) return "";
 
-  if (!image) {
-
-    return "";
-
-  }
-
-
-  if (
-    image.startsWith("data:image/")
-  ) {
-
-    return image;
-
-  }
-
+  if (image.startsWith("data:image/")) return image;
 
   if (
     image.startsWith("http://") ||
     image.startsWith("https://")
   ) {
-
     return image;
-
   }
 
+  const cleanPath = image
+    .replace(/^\.\/+/, "")
+    .replace(/^\/+/, "");
 
-  let cleanPath =
-    image
-      .replace(/^\.\/+/, "")
-      .replace(/^\/+/, "");
-
-
-  const parts =
-    cleanPath
-      .split("/")
-      .map(
-        (part) =>
-          encodeURIComponent(
-            decodeURIComponentSafe(part)
-          )
-      );
-
+  const parts = cleanPath
+    .split("/")
+    .map(part =>
+      encodeURIComponent(
+        decodeURIComponentSafe(part)
+      )
+    );
 
   return "./" + parts.join("/");
 }
 
-
-// ============================================================
-// PRICE
-// ============================================================
-
 function formatPrice(price) {
-
-  const number =
-    Number(price);
+  const number = Number(price);
 
   if (Number.isNaN(number)) {
-
     return "0 DH";
-
   }
 
   return `${number.toLocaleString("fr-FR")} DH`;
 }
 
+function formatDate(timestamp) {
+  if (!timestamp) {
+    return "Date inconnue";
+  }
 
-// ============================================================
-// FIRESTORE
-// ============================================================
+  try {
+    const date = timestamp.toDate
+      ? timestamp.toDate()
+      : new Date(timestamp);
 
-let productsRef = null;
-
-if (db) {
-
-  productsRef =
-    collection(
-      db,
-      "products"
-    );
-
+    return date.toLocaleString("fr-FR", {
+      dateStyle: "short",
+      timeStyle: "short"
+    });
+  } catch {
+    return "Date inconnue";
+  }
 }
 
+function getOrderData() {
+  return {
+    name: oName?.value.trim() || "",
+    phone: oPhone?.value.trim() || "",
+    article: oArticle?.value.trim() || "",
+    size: oSize?.value.trim() || "",
+    qty: Math.max(
+      1,
+      Number(oQty?.value || 1)
+    ),
+    city: oCity?.value.trim() || "",
+    address: oAddress?.value.trim() || "",
+    message: oMessage?.value.trim() || ""
+  };
+}
+
+function validateOrder(data) {
+  if (
+    !data.name ||
+    !data.phone ||
+    !data.article ||
+    !data.size ||
+    !data.city
+  ) {
+    return "Veuillez remplir tous les champs obligatoires.";
+  }
+
+  if (
+    !Number.isFinite(data.qty) ||
+    data.qty < 1
+  ) {
+    return "Veuillez saisir une quantité valide.";
+  }
+
+  return "";
+}
+
+function buildWhatsAppUrl(data) {
+  const text = `
+Bonjour XN-KODASSY 👋
+
+Je souhaite commander :
+
+Article : ${data.article}
+Taille : ${data.size || "Non précisée"}
+Quantité : ${data.qty}
+
+Nom : ${data.name}
+Téléphone : ${data.phone}
+Ville : ${data.city || "Non précisée"}
+Adresse : ${data.address || "Non précisée"}
+
+Message :
+${data.message || "Aucun message supplémentaire."}
+  `.trim();
+
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+}
 
 // ============================================================
 // ADMIN LOGIN
 // ============================================================
 
 if (adminToggleLink) {
-
   adminToggleLink.addEventListener(
     "click",
     async (event) => {
@@ -343,48 +254,32 @@ if (adminToggleLink) {
       event.preventDefault();
 
       if (currentUser) {
-
         openAdminPanel();
-
         return;
-
       }
 
-
-      const email =
-        prompt(
-          "Email du gérant :"
-        );
+      const email = prompt(
+        "Email du gérant :"
+      );
 
       if (!email) {
-
         return;
-
       }
 
-
-      const password =
-        prompt(
-          "Mot de passe du gérant :"
-        );
+      const password = prompt(
+        "Mot de passe du gérant :"
+      );
 
       if (!password) {
-
         return;
-
       }
 
-
       if (!auth) {
-
         alert(
           "Firebase Authentication n'est pas disponible."
         );
-
         return;
-
       }
-
 
       try {
 
@@ -394,14 +289,11 @@ if (adminToggleLink) {
           password
         );
 
-
         alert(
           "Connexion réussie ✅"
         );
 
-
         openAdminPanel();
-
 
       } catch (error) {
 
@@ -410,10 +302,8 @@ if (adminToggleLink) {
           error
         );
 
-
         let message =
           "Connexion impossible.\n\n";
-
 
         if (
           error.code ===
@@ -463,30 +353,24 @@ if (adminToggleLink) {
 
         }
 
-
         alert(message);
-
       }
-
     }
   );
-
 }
 
-
 // ============================================================
-// AUTH STATE
+// AUTH STATE + ORDERS LISTENER
 // ============================================================
 
 if (auth) {
 
   onAuthStateChanged(
     auth,
-    (user) => {
+    user => {
 
       currentUser =
         user || null;
-
 
       if (user) {
 
@@ -495,51 +379,109 @@ if (auth) {
           user.email
         );
 
+        startOrdersListener();
+
       } else {
 
         console.log(
           "Aucun manager connecté."
         );
 
-      }
+        stopOrdersListener();
 
+        orders = [];
+
+        renderAdminList();
+      }
     }
   );
 
 }
 
+function startOrdersListener() {
+
+  if (
+    !ordersRef ||
+    unsubscribeOrders
+  ) {
+    return;
+  }
+
+  unsubscribeOrders =
+    onSnapshot(
+      ordersRef,
+
+      snapshot => {
+
+        orders =
+          snapshot.docs.map(
+            item => ({
+              id: item.id,
+              ...item.data()
+            })
+          );
+
+        orders.sort(
+          (a, b) => {
+
+            const dateA =
+              a.createdAt?.seconds || 0;
+
+            const dateB =
+              b.createdAt?.seconds || 0;
+
+            return dateB - dateA;
+          }
+        );
+
+        console.log(
+          `${orders.length} commande(s) chargée(s) ✅`
+        );
+
+        renderAdminList();
+      },
+
+      error => {
+
+        console.error(
+          "Erreur commandes Firestore:",
+          error
+        );
+      }
+    );
+}
+
+function stopOrdersListener() {
+
+  if (unsubscribeOrders) {
+
+    unsubscribeOrders();
+
+    unsubscribeOrders =
+      null;
+  }
+}
 
 // ============================================================
-// OPEN ADMIN
+// ADMIN PANEL
 // ============================================================
 
 function openAdminPanel() {
 
   if (!adminPanel) {
-
     return;
-
   }
-
 
   adminPanel.hidden =
     false;
 
-
   renderAdminList();
-
 
   adminPanel.scrollIntoView({
     behavior: "smooth",
     block: "start"
   });
-
 }
-
-
-// ============================================================
-// CLOSE ADMIN
-// ============================================================
 
 if (closeAdmin) {
 
@@ -548,12 +490,9 @@ if (closeAdmin) {
     async () => {
 
       if (adminPanel) {
-
         adminPanel.hidden =
           true;
-
       }
-
 
       if (auth) {
 
@@ -567,19 +506,14 @@ if (closeAdmin) {
             "Erreur déconnexion:",
             error
           );
-
         }
-
       }
-
     }
   );
-
 }
 
-
 // ============================================================
-// FIRESTORE REAL-TIME
+// PRODUCTS REAL-TIME
 // ============================================================
 
 if (productsRef) {
@@ -587,19 +521,15 @@ if (productsRef) {
   onSnapshot(
     productsRef,
 
-    (snapshot) => {
+    snapshot => {
 
       products =
         snapshot.docs.map(
-          (item) => ({
-
+          item => ({
             id: item.id,
-
             ...item.data()
-
           })
         );
-
 
       products.sort(
         (a, b) => {
@@ -611,15 +541,8 @@ if (productsRef) {
             b.createdAt?.seconds || 0;
 
           return dateB - dateA;
-
         }
       );
-
-
-      console.log(
-        `${products.length} produit(s) chargé(s) ✅`
-      );
-
 
       renderFilters();
 
@@ -628,17 +551,14 @@ if (productsRef) {
       renderOrderOptions();
 
       renderAdminList();
-
     },
 
-
-    (error) => {
+    error => {
 
       console.error(
-        "Firestore error:",
+        "Firestore products error:",
         error
       );
-
 
       if (emptyState) {
 
@@ -647,15 +567,10 @@ if (productsRef) {
 
         emptyState.textContent =
           "Impossible de charger les produits.";
-
       }
-
     }
-
   );
-
 }
-
 
 // ============================================================
 // FILTERS
@@ -664,24 +579,20 @@ if (productsRef) {
 function renderFilters() {
 
   if (!collectionFilters) {
-
     return;
-
   }
-
 
   const categories = [
     "Tous",
     ...new Set(
       products
         .map(
-          (product) =>
+          product =>
             product.category
         )
         .filter(Boolean)
     )
   ];
-
 
   if (
     !categories.includes(
@@ -691,40 +602,30 @@ function renderFilters() {
 
     activeFilter =
       "Tous";
-
   }
-
 
   collectionFilters.innerHTML =
     "";
 
-
   categories.forEach(
-    (category) => {
+    category => {
 
       const button =
         document.createElement(
           "button"
         );
 
-
       button.type =
         "button";
-
 
       button.className =
         category === activeFilter
           ? "filter-btn active"
           : "filter-btn";
 
-
       button.textContent =
         category;
 
-
-      // IMPORTANT:
-      // Le bouton filtre ne doit PAS
-      // contenir la logique Commander.
       button.addEventListener(
         "click",
         () => {
@@ -735,24 +636,15 @@ function renderFilters() {
           renderFilters();
 
           renderProducts();
-
         }
       );
-
 
       collectionFilters.appendChild(
         button
       );
-
     }
   );
-
 }
-
-
-// ============================================================
-// FILTERED PRODUCTS
-// ============================================================
 
 function getFilteredProducts() {
 
@@ -760,20 +652,15 @@ function getFilteredProducts() {
     activeFilter ===
     "Tous"
   ) {
-
     return products;
-
   }
 
-
   return products.filter(
-    (product) =>
+    product =>
       product.category ===
       activeFilter
   );
-
 }
-
 
 // ============================================================
 // PRODUCTS
@@ -782,19 +669,14 @@ function getFilteredProducts() {
 function renderProducts() {
 
   if (!productGrid) {
-
     return;
-
   }
-
 
   const filteredProducts =
     getFilteredProducts();
 
-
   productGrid.innerHTML =
     "";
-
 
   if (
     filteredProducts.length ===
@@ -806,43 +688,36 @@ function renderProducts() {
       emptyState.hidden =
         false;
 
+      emptyState.textContent =
+        "Aucun produit pour le moment.";
     }
 
     return;
-
   }
-
 
   if (emptyState) {
-
     emptyState.hidden =
       true;
-
   }
 
-
   filteredProducts.forEach(
-    (product) => {
+    product => {
 
       const card =
         document.createElement(
           "article"
         );
 
-
       card.className =
         "product-card";
-
 
       const imageUrl =
         normalizeImageUrl(
           product.image
         );
 
-
       const image =
         imageUrl
-
           ? `
             <img
               src="${escapeHtml(imageUrl)}"
@@ -851,96 +726,73 @@ function renderProducts() {
               onerror="this.style.display='none'; this.parentElement.classList.add('image-error');"
             >
           `
-
           : `
             <div class="product-no-image">
               XN-KODASSY
             </div>
           `;
 
-
       const sizes =
         Array.isArray(
           product.sizes
         )
-
           ? product.sizes
               .map(
-                (size) =>
+                size =>
                   escapeHtml(size)
               )
               .join(" · ")
-
           : escapeHtml(
               product.sizes || ""
             );
 
-
       card.innerHTML = `
 
         <div class="product-image">
-
           ${image}
-
         </div>
-
 
         <div class="product-info">
 
           <div class="product-category">
-
             ${escapeHtml(
               product.category || ""
             )}
-
           </div>
 
-
           <h3>
-
             ${escapeHtml(
               product.name || ""
             )}
-
           </h3>
 
-
           <div class="product-price">
-
             ${formatPrice(
               product.price
             )}
-
           </div>
-
 
           ${
             sizes
               ? `
                 <div class="product-sizes">
-
                   ${sizes}
-
                 </div>
               `
               : ""
           }
 
-
           ${
             product.desc
               ? `
                 <p class="product-desc">
-
                   ${escapeHtml(
                     product.desc
                   )}
-
                 </p>
               `
               : ""
           }
-
 
           <button
             type="button"
@@ -949,113 +801,65 @@ function renderProducts() {
               product.id
             )}"
           >
-
             Commander
-
           </button>
 
         </div>
-
       `;
-
 
       productGrid.appendChild(
         card
       );
-
     }
   );
-
 }
 
-
 // ============================================================
-// COMMANDER BUTTON
-// ============================================================
-//
-// Event delegation.
-// This is more reliable than recreating listeners every time
-// the products are filtered or refreshed.
+// PRODUCT COMMANDER BUTTON
 // ============================================================
 
 if (productGrid) {
 
   productGrid.addEventListener(
     "click",
-    (event) => {
+    event => {
 
       const button =
         event.target.closest(
           ".order-product"
         );
 
-
       if (!button) {
-
         return;
-
       }
-
-
-      console.log(
-        "Bouton Commander cliqué ✅"
-      );
-
-
-      const productId =
-        button.dataset.id;
-
 
       const product =
         products.find(
-          (item) =>
+          item =>
             item.id ===
-            productId
+            button.dataset.id
         );
-
 
       if (!product) {
-
-        console.error(
-          "Produit introuvable:",
-          productId
-        );
-
         return;
-
       }
 
-
-      // Sélectionner automatiquement
-      // le produit dans le formulaire.
       selectProductForOrder(
         product
       );
-
 
       const orderSection =
         document.getElementById(
           "commande"
         );
 
-
       if (!orderSection) {
-
-        console.error(
-          "Section #commande introuvable."
-        );
-
         return;
-
       }
 
-
-      // Mettre le hash.
       window.location.hash =
         "commande";
 
-
-      // Scroll.
       setTimeout(
         () => {
 
@@ -1064,33 +868,24 @@ if (productGrid) {
             block: "start"
           });
 
-
-          // Focus sur le nom.
           if (oName) {
 
             setTimeout(
-              () => {
-
-                oName.focus();
-
-              },
+              () =>
+                oName.focus(),
               500
             );
-
           }
 
         },
         100
       );
-
     }
   );
-
 }
 
-
 // ============================================================
-// SELECT PRODUCT
+// ORDER FORM OPTIONS
 // ============================================================
 
 function selectProductForOrder(
@@ -1098,98 +893,72 @@ function selectProductForOrder(
 ) {
 
   if (!product) {
-
     return;
-
   }
-
 
   if (oArticle) {
-
     oArticle.value =
       product.name;
-
   }
-
 
   updateOrderSizes(
     product
   );
-
 }
-
-
-// ============================================================
-// ORDER ARTICLE OPTIONS
-// ============================================================
 
 function renderOrderOptions() {
 
   if (!oArticle) {
-
     return;
-
   }
-
 
   const previousValue =
     oArticle.value;
 
-
   oArticle.innerHTML =
     "";
-
 
   const placeholder =
     document.createElement(
       "option"
     );
 
-
   placeholder.value =
     "";
 
-
   placeholder.textContent =
     "Sélectionner un produit";
-
 
   oArticle.appendChild(
     placeholder
   );
 
-
   products.forEach(
-    (product) => {
+    product => {
 
       const option =
         document.createElement(
           "option"
         );
 
-
       option.value =
         product.name;
-
 
       option.textContent =
         `${product.name} — ${formatPrice(
           product.price
         )}`;
 
-
       oArticle.appendChild(
         option
       );
-
     }
   );
-
 
   if (
     previousValue &&
     products.some(
-      (product) =>
+      product =>
         product.name ===
         previousValue
     )
@@ -1197,24 +966,10 @@ function renderOrderOptions() {
 
     oArticle.value =
       previousValue;
-
   }
 
-
   updateOrderSizes();
-
 }
-
-
-// ============================================================
-// UPDATE ORDER SIZE
-// ============================================================
-//
-// IMPORTANT:
-// #oSize is an INPUT in index.html.
-// Therefore we do NOT add <option> elements to it.
-// We simply display the available sizes as a placeholder.
-// ============================================================
 
 function updateOrderSizes(
   selectedProduct = null
@@ -1224,20 +979,16 @@ function updateOrderSizes(
     !oArticle ||
     !oSize
   ) {
-
     return;
-
   }
-
 
   const product =
     selectedProduct ||
     products.find(
-      (item) =>
+      item =>
         item.name ===
         oArticle.value
     );
-
 
   if (!product) {
 
@@ -1248,48 +999,25 @@ function updateOrderSizes(
       "Ex : 42";
 
     return;
-
   }
-
 
   const sizes =
     Array.isArray(
       product.sizes
     )
-
       ? product.sizes
       : [];
 
+  oSize.value =
+    "";
 
-  if (
+  oSize.placeholder =
     sizes.length > 0
-  ) {
-
-    // On garde l'input texte.
-    oSize.value =
-      "";
-
-    oSize.placeholder =
-      `Tailles : ${sizes.join(
-        ", "
-      )}`;
-
-  } else {
-
-    oSize.value =
-      "";
-
-    oSize.placeholder =
-      "Taille";
-
-  }
-
+      ? `Tailles : ${sizes.join(
+          ", "
+        )}`
+      : "Taille";
 }
-
-
-// ============================================================
-// ARTICLE CHANGE
-// ============================================================
 
 if (oArticle) {
 
@@ -1298,70 +1026,30 @@ if (oArticle) {
     () => {
 
       updateOrderSizes();
-
     }
   );
-
 }
 
-
 // ============================================================
-// WHATSAPP
+// WHATSAPP — UNIQUEMENT WHATSAPP
+// IMPORTANT: aucune sauvegarde Firestore ici.
 // ============================================================
 
 if (whatsappBtn) {
 
   whatsappBtn.addEventListener(
     "click",
-    (event) => {
+    event => {
 
       event.preventDefault();
 
-
-      const name =
-        oName?.value.trim() ||
-        "";
-
-
-      const phone =
-        oPhone?.value.trim() ||
-        "";
-
-
-      const article =
-        oArticle?.value.trim() ||
-        "";
-
-
-      const size =
-        oSize?.value.trim() ||
-        "";
-
-
-      const qty =
-        oQty?.value ||
-        "1";
-
-
-      const city =
-        oCity?.value.trim() ||
-        "";
-
-
-      const address =
-        oAddress?.value.trim() ||
-        "";
-
-
-      const message =
-        oMessage?.value.trim() ||
-        "";
-
+      const data =
+        getOrderData();
 
       if (
-        !name ||
-        !phone ||
-        !article
+        !data.name ||
+        !data.phone ||
+        !data.article
       ) {
 
         alert(
@@ -1369,101 +1057,139 @@ if (whatsappBtn) {
         );
 
         return;
-
       }
 
-
-      const text = `
-Bonjour XN-KODASSY 👋
-
-Je souhaite commander :
-
-Article : ${article}
-Taille : ${size || "Non précisée"}
-Quantité : ${qty}
-
-Nom : ${name}
-Téléphone : ${phone}
-Ville : ${city || "Non précisée"}
-Adresse : ${address || "Non précisée"}
-
-Message :
-${message || "Aucun message supplémentaire."}
-      `.trim();
-
-
       const url =
-        `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-          text
-        )}`;
-
+        buildWhatsAppUrl(
+          data
+        );
 
       window.open(
         url,
         "_blank",
         "noopener,noreferrer"
       );
-
-
-      if (orderConfirm) {
-
-        orderConfirm.hidden =
-          false;
-
-      }
-
     }
   );
-
 }
 
-
 // ============================================================
-// SEND ORDER FORM
+// FORMULAIRE — SEUL ENDROIT QUI ENREGISTRE LA COMMANDE
 // ============================================================
 
-if (document.getElementById("orderForm")) {
-
-  const orderForm =
-    document.getElementById(
-      "orderForm"
-    );
-
+if (orderForm) {
 
   orderForm.addEventListener(
     "submit",
-    (event) => {
+    async event => {
 
       event.preventDefault();
 
+      if (!ordersRef) {
 
-      if (orderConfirm) {
+        alert(
+          "Firestore n'est pas disponible."
+        );
 
-        orderConfirm.hidden =
-          false;
-
-        orderConfirm.textContent =
-          "Merci ! Votre demande a bien été enregistrée. Vous pouvez également nous contacter via WhatsApp.";
-
+        return;
       }
 
+      const data =
+        getOrderData();
 
-      // On ouvre également WhatsApp
-      // pour que la commande arrive directement.
-      if (whatsappBtn) {
+      const validationError =
+        validateOrder(data);
 
-        whatsappBtn.click();
+      if (validationError) {
 
+        alert(
+          validationError
+        );
+
+        return;
       }
 
+      const submitButton =
+        orderForm.querySelector(
+          'button[type="submit"]'
+        );
+
+      if (submitButton) {
+
+        submitButton.disabled =
+          true;
+
+        submitButton.textContent =
+          "Enregistrement...";
+      }
+
+      try {
+
+        await addDoc(
+          ordersRef,
+          {
+            ...data,
+
+            channel:
+              "Formulaire",
+
+            status:
+              "Nouveau",
+
+            createdAt:
+              serverTimestamp()
+          }
+        );
+
+        if (orderConfirm) {
+
+          orderConfirm.hidden =
+            false;
+
+          orderConfirm.textContent =
+            "Merci ! Votre demande a bien été enregistrée.";
+        }
+
+        orderForm.reset();
+
+        updateOrderSizes();
+
+        console.log(
+          "Commande enregistrée dans Firestore ✅"
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Erreur enregistrement commande:",
+          error
+        );
+
+        alert(
+          "Impossible d'enregistrer la commande.\n\n" +
+          (
+            error.message ||
+            "Erreur inconnue."
+          )
+        );
+
+      } finally {
+
+        if (submitButton) {
+
+          submitButton.disabled =
+            false;
+
+          submitButton.textContent =
+            "Envoyer la commande";
+        }
+      }
     }
   );
-
 }
 
-
 // ============================================================
-// IMAGE FILE PREVIEW
+// IMAGE PREVIEW
 // ============================================================
 
 if (pImageFile) {
@@ -1475,13 +1201,9 @@ if (pImageFile) {
       const file =
         pImageFile.files?.[0];
 
-
       if (!file) {
-
         return;
-
       }
-
 
       if (
         !file.type.startsWith(
@@ -1493,58 +1215,35 @@ if (pImageFile) {
           "Veuillez sélectionner une image."
         );
 
-
         pImageFile.value =
           "";
 
-
         return;
-
       }
-
 
       const reader =
         new FileReader();
 
-
       reader.onload =
-        (event) => {
-
-          editingImageData =
-            event.target.result;
-
+        event => {
 
           if (imagePreview) {
-
             imagePreview.src =
-              editingImageData;
-
+              event.target.result;
           }
-
 
           if (imagePreviewRow) {
-
             imagePreviewRow.hidden =
               false;
-
           }
-
         };
-
 
       reader.readAsDataURL(
         file
       );
-
     }
   );
-
 }
-
-
-// ============================================================
-// IMAGE PATH PREVIEW
-// ============================================================
 
 if (pImage) {
 
@@ -1555,51 +1254,30 @@ if (pImage) {
       const value =
         pImage.value.trim();
 
-
       if (!value) {
 
         if (imagePreviewRow) {
-
           imagePreviewRow.hidden =
             true;
-
         }
 
         return;
-
       }
-
-
-      const imageUrl =
-        normalizeImageUrl(
-          value
-        );
-
 
       if (imagePreview) {
-
         imagePreview.src =
-          imageUrl;
-
+          normalizeImageUrl(
+            value
+          );
       }
-
 
       if (imagePreviewRow) {
-
         imagePreviewRow.hidden =
           false;
-
       }
-
     }
   );
-
 }
-
-
-// ============================================================
-// REMOVE IMAGE
-// ============================================================
 
 if (removeImage) {
 
@@ -1607,47 +1285,29 @@ if (removeImage) {
     "click",
     () => {
 
-      editingImageData =
-        null;
-
-
       if (pImageFile) {
-
         pImageFile.value =
           "";
-
       }
-
 
       if (pImage) {
-
         pImage.value =
           "";
-
       }
-
 
       if (imagePreviewRow) {
-
         imagePreviewRow.hidden =
           true;
-
       }
 
-
       if (imagePreview) {
-
         imagePreview.removeAttribute(
           "src"
         );
-
       }
-
     }
   );
-
 }
-
 
 // ============================================================
 // ADD PRODUCT
@@ -1657,10 +1317,9 @@ if (productForm) {
 
   productForm.addEventListener(
     "submit",
-    async (event) => {
+    async event => {
 
       event.preventDefault();
-
 
       if (!currentUser) {
 
@@ -1669,9 +1328,7 @@ if (productForm) {
         );
 
         return;
-
       }
-
 
       if (!productsRef) {
 
@@ -1680,40 +1337,27 @@ if (productForm) {
         );
 
         return;
-
       }
 
-
       const name =
-        pName?.value.trim() ||
-        "";
-
+        pName?.value.trim() || "";
 
       const price =
         Number(
           pPrice?.value
         );
 
-
       const category =
-        pCategory?.value.trim() ||
-        "";
-
+        pCategory?.value.trim() || "";
 
       const sizesText =
-        pSizes?.value.trim() ||
-        "";
-
+        pSizes?.value.trim() || "";
 
       const description =
-        pDesc?.value.trim() ||
-        "";
-
+        pDesc?.value.trim() || "";
 
       const imageInput =
-        pImage?.value.trim() ||
-        "";
-
+        pImage?.value.trim() || "";
 
       if (!name) {
 
@@ -1722,42 +1366,32 @@ if (productForm) {
         );
 
         return;
-
       }
 
-
-      if (
-        Number.isNaN(price)
-      ) {
+      if (Number.isNaN(price)) {
 
         alert(
           "Veuillez saisir un prix valide."
         );
 
         return;
-
       }
-
 
       const sizes =
         sizesText
-
           ? sizesText
               .split(",")
               .map(
-                (size) =>
+                size =>
                   size.trim()
               )
               .filter(Boolean)
-
           : [];
-
 
       const submitButton =
         productForm.querySelector(
           'button[type="submit"]'
         );
-
 
       if (submitButton) {
 
@@ -1766,22 +1400,13 @@ if (productForm) {
 
         submitButton.textContent =
           "Enregistrement...";
-
       }
 
-
       try {
-
-        const finalImage =
-          normalizeImageUrl(
-            imageInput
-          );
-
 
         await addDoc(
           productsRef,
           {
-
             name,
 
             price,
@@ -1791,7 +1416,9 @@ if (productForm) {
             sizes,
 
             image:
-              finalImage,
+              normalizeImageUrl(
+                imageInput
+              ),
 
             imagePath:
               imageInput,
@@ -1801,39 +1428,25 @@ if (productForm) {
 
             createdAt:
               serverTimestamp()
-
           }
         );
-
 
         alert(
           "Produit ajouté avec succès ✅"
         );
 
-
         productForm.reset();
 
-
-        editingImageData =
-          null;
-
-
         if (imagePreviewRow) {
-
           imagePreviewRow.hidden =
             true;
-
         }
 
-
         if (imagePreview) {
-
           imagePreview.removeAttribute(
             "src"
           );
-
         }
-
 
       } catch (error) {
 
@@ -1842,30 +1455,13 @@ if (productForm) {
           error
         );
 
-
-        let message =
-          "Erreur lors de l'ajout du produit.\n\n";
-
-
-        if (
-          error.code ===
-          "permission-denied"
-        ) {
-
-          message +=
-            "Vous n'avez pas les permissions nécessaires dans Firestore.";
-
-        } else {
-
-          message +=
+        alert(
+          "Erreur lors de l'ajout du produit.\n\n" +
+          (
             error.message ||
-            "Erreur inconnue.";
-
-        }
-
-
-        alert(message);
-
+            "Erreur inconnue."
+          )
+        );
 
       } finally {
 
@@ -1876,159 +1472,338 @@ if (productForm) {
 
           submitButton.textContent =
             "Ajouter le produit";
-
         }
-
       }
-
     }
   );
-
 }
 
-
 // ============================================================
-// ADMIN LIST
+// ADMIN — PRODUITS + COMMANDES
 // ============================================================
 
 function renderAdminList() {
 
   if (!adminList) {
-
     return;
-
   }
-
 
   adminList.innerHTML =
     "";
 
+  const titleProducts =
+    document.createElement(
+      "h3"
+    );
+
+  titleProducts.textContent =
+    "Produits";
+
+  adminList.appendChild(
+    titleProducts
+  );
 
   if (
     products.length ===
     0
   ) {
 
-    adminList.innerHTML =
-      "<p>Aucun produit pour le moment.</p>";
+    const p =
+      document.createElement(
+        "p"
+      );
 
-    return;
+    p.textContent =
+      "Aucun produit pour le moment.";
 
+    adminList.appendChild(
+      p
+    );
+
+  } else {
+
+    products.forEach(
+      product => {
+
+        const item =
+          document.createElement(
+            "div"
+          );
+
+        item.className =
+          "admin-product-item";
+
+        item.innerHTML = `
+
+          <div>
+
+            <strong>
+              ${escapeHtml(
+                product.name
+              )}
+            </strong>
+
+            <span>
+              ${formatPrice(
+                product.price
+              )}
+            </span>
+
+          </div>
+
+          <button
+            type="button"
+            class="delete-product"
+            data-id="${escapeHtml(
+              product.id
+            )}"
+          >
+            Supprimer
+          </button>
+        `;
+
+        adminList.appendChild(
+          item
+        );
+      }
+    );
   }
 
+  const titleOrders =
+    document.createElement(
+      "h3"
+    );
 
-  products.forEach(
-    (product) => {
+  titleOrders.textContent =
+    "Commandes clients";
+
+  titleOrders.style.marginTop =
+    "30px";
+
+  adminList.appendChild(
+    titleOrders
+  );
+
+  if (!currentUser) {
+
+    const p =
+      document.createElement(
+        "p"
+      );
+
+    p.textContent =
+      "Connectez-vous pour voir les commandes.";
+
+    adminList.appendChild(
+      p
+    );
+
+    return;
+  }
+
+  if (
+    orders.length ===
+    0
+  ) {
+
+    const p =
+      document.createElement(
+        "p"
+      );
+
+    p.textContent =
+      "Aucune commande pour le moment.";
+
+    adminList.appendChild(
+      p
+    );
+
+    return;
+  }
+
+  orders.forEach(
+    order => {
 
       const item =
         document.createElement(
           "div"
         );
 
-
       item.className =
-        "admin-product-item";
+        "admin-order-item";
 
+      const status =
+        order.status ||
+        "Nouveau";
+
+      const statusLabel =
+        status === "Traité"
+          ? "Traité"
+          : "Nouveau";
 
       item.innerHTML = `
 
-        <div>
+        <div class="admin-order-content">
 
           <strong>
-
             ${escapeHtml(
-              product.name
+              order.article ||
+              "Article"
             )}
-
           </strong>
 
-          <span>
-
-            ${formatPrice(
-              product.price
+          <div>
+            <b>Client :</b>
+            ${escapeHtml(
+              order.name
             )}
+          </div>
 
-          </span>
+          <div>
+            <b>Téléphone :</b>
+            ${escapeHtml(
+              order.phone
+            )}
+          </div>
+
+          <div>
+            <b>Taille :</b>
+            ${escapeHtml(
+              order.size
+            )}
+          </div>
+
+          <div>
+            <b>Quantité :</b>
+            ${escapeHtml(
+              order.qty
+            )}
+          </div>
+
+          <div>
+            <b>Ville :</b>
+            ${escapeHtml(
+              order.city
+            )}
+          </div>
+
+          <div>
+            <b>Adresse :</b>
+            ${escapeHtml(
+              order.address ||
+              "Non précisée"
+            )}
+          </div>
+
+          <div>
+            <b>Message :</b>
+            ${escapeHtml(
+              order.message ||
+              "Aucun"
+            )}
+          </div>
+
+          <div>
+            <b>Source :</b>
+            ${escapeHtml(
+              order.channel ||
+              "Formulaire"
+            )}
+          </div>
+
+          <div>
+            <b>Date :</b>
+            ${escapeHtml(
+              formatDate(
+                order.createdAt
+              )
+            )}
+          </div>
+
+          <div>
+            <b>Statut :</b>
+            ${escapeHtml(
+              statusLabel
+            )}
+          </div>
 
         </div>
 
+        <div class="admin-order-actions">
 
-        <button
-          type="button"
-          class="delete-product"
-          data-id="${escapeHtml(
-            product.id
-          )}"
-        >
+          <button
+            type="button"
+            class="toggle-order-status"
+            data-id="${escapeHtml(
+              order.id
+            )}"
+          >
+            ${
+              status === "Traité"
+                ? "Marquer nouveau"
+                : "Marquer traité"
+            }
+          </button>
 
-          Supprimer
+          <button
+            type="button"
+            class="delete-order"
+            data-id="${escapeHtml(
+              order.id
+            )}"
+          >
+            Supprimer
+          </button>
 
-        </button>
-
+        </div>
       `;
-
 
       adminList.appendChild(
         item
       );
-
     }
   );
 
+  // ==========================================================
+  // DELETE PRODUCTS
+  // ==========================================================
 
   adminList
     .querySelectorAll(
       ".delete-product"
     )
     .forEach(
-      (button) => {
+      button => {
 
         button.addEventListener(
           "click",
           async () => {
 
             if (!currentUser) {
-
-              alert(
-                "Vous devez être connecté comme gérant."
-              );
-
               return;
-
             }
-
 
             const productId =
               button.dataset.id;
 
-
             const product =
               products.find(
-                (item) =>
+                item =>
                   item.id ===
                   productId
               );
 
-
             if (!product) {
-
               return;
-
             }
 
-
-            const confirmed =
-              confirm(
+            if (
+              !confirm(
                 `Supprimer "${product.name}" ?`
-              );
-
-
-            if (!confirmed) {
-
+              )
+            ) {
               return;
-
             }
-
 
             try {
 
@@ -2040,35 +1815,165 @@ function renderAdminList() {
                 )
               );
 
-
               alert(
                 "Produit supprimé ✅"
               );
 
-
             } catch (error) {
 
               console.error(
-                "Erreur suppression:",
+                "Erreur suppression produit:",
                 error
               );
-
 
               alert(
                 "Erreur lors de la suppression.\n\n" +
                 error.message
               );
-
             }
-
           }
         );
-
       }
     );
 
-}
+  // ==========================================================
+  // TOGGLE ORDER STATUS
+  // ==========================================================
 
+  adminList
+    .querySelectorAll(
+      ".toggle-order-status"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          async () => {
+
+            if (!currentUser) {
+              return;
+            }
+
+            const orderId =
+              button.dataset.id;
+
+            const order =
+              orders.find(
+                item =>
+                  item.id ===
+                  orderId
+              );
+
+            if (!order) {
+              return;
+            }
+
+            const newStatus =
+              order.status ===
+              "Traité"
+                ? "Nouveau"
+                : "Traité";
+
+            try {
+
+              await updateDoc(
+                doc(
+                  db,
+                  "orders",
+                  orderId
+                ),
+                {
+                  status:
+                    newStatus
+                }
+              );
+
+            } catch (error) {
+
+              console.error(
+                "Erreur statut commande:",
+                error
+              );
+
+              alert(
+                "Impossible de modifier le statut.\n\n" +
+                error.message
+              );
+            }
+          }
+        );
+      }
+    );
+
+  // ==========================================================
+  // DELETE ORDERS
+  // ==========================================================
+
+  adminList
+    .querySelectorAll(
+      ".delete-order"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          async () => {
+
+            if (!currentUser) {
+              return;
+            }
+
+            const orderId =
+              button.dataset.id;
+
+            const order =
+              orders.find(
+                item =>
+                  item.id ===
+                  orderId
+              );
+
+            if (!order) {
+              return;
+            }
+
+            if (
+              !confirm(
+                `Supprimer la commande de "${order.name}" ?`
+              )
+            ) {
+              return;
+            }
+
+            try {
+
+              await deleteDoc(
+                doc(
+                  db,
+                  "orders",
+                  orderId
+                )
+              );
+
+            } catch (error) {
+
+              console.error(
+                "Erreur suppression commande:",
+                error
+              );
+
+              alert(
+                "Impossible de supprimer la commande.\n\n" +
+                error.message
+              );
+            }
+          }
+        );
+      }
+    );
+}
 
 // ============================================================
 // EXPORT CATALOG
@@ -2082,91 +1987,82 @@ if (exportCatalog) {
 
       const exportProducts =
         products.map(
-          (product) => ({
+          product => ({
 
             id:
               product.id,
 
             name:
-              product.name || "",
+              product.name ||
+              "",
 
             price:
-              product.price || 0,
+              product.price ||
+              0,
 
             category:
-              product.category || "",
+              product.category ||
+              "",
 
             sizes:
-              product.sizes || [],
+              product.sizes ||
+              [],
 
             image:
-              product.image || "",
+              product.image ||
+              "",
 
             desc:
-              product.desc || ""
-
+              product.desc ||
+              ""
           })
         );
 
-
-      const json =
-        JSON.stringify(
-          exportProducts,
-          null,
-          2
-        );
-
-
       const blob =
         new Blob(
-          [json],
+          [
+            JSON.stringify(
+              exportProducts,
+              null,
+              2
+            )
+          ],
           {
             type:
               "application/json"
           }
         );
 
-
       const url =
         URL.createObjectURL(
           blob
         );
-
 
       const link =
         document.createElement(
           "a"
         );
 
-
       link.href =
         url;
 
-
       link.download =
         "xn-kodassy-products.json";
-
 
       document.body.appendChild(
         link
       );
 
-
       link.click();
 
-
       link.remove();
-
 
       URL.revokeObjectURL(
         url
       );
-
     }
   );
-
 }
-
 
 // ============================================================
 // MOBILE MENU
@@ -2177,12 +2073,10 @@ const burger =
     "burgerBtn"
   );
 
-
 const nav =
   document.getElementById(
     "mainNav"
   );
-
 
 if (
   burger &&
@@ -2198,22 +2092,17 @@ if (
           "open"
         );
 
-
       burger.setAttribute(
         "aria-expanded",
         String(isOpen)
       );
-
     }
   );
 
-
-  // Fermer le menu après
-  // avoir choisi une section.
   nav.querySelectorAll(
     "a[href^='#']"
   ).forEach(
-    (link) => {
+    link => {
 
       link.addEventListener(
         "click",
@@ -2223,20 +2112,15 @@ if (
             "open"
           );
 
-
           burger.setAttribute(
             "aria-expanded",
             "false"
           );
-
         }
       );
-
     }
   );
-
 }
-
 
 // ============================================================
 // YEAR
@@ -2247,14 +2131,11 @@ const yearElement =
     "year"
   );
 
-
 if (yearElement) {
 
   yearElement.textContent =
     new Date().getFullYear();
-
 }
-
 
 // ============================================================
 // START
@@ -2273,7 +2154,11 @@ console.log(
 );
 
 console.log(
-  "WhatsApp: ACTIVÉ ✅"
+  "Formulaire: COMMANDES SAUVEGARDÉES ✅"
+);
+
+console.log(
+  "WhatsApp: UNIQUEMENT WHATSAPP ✅"
 );
 
 console.log(
