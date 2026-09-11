@@ -1,8 +1,12 @@
 // ============================================================
 // XN-KODASSY
-// Firebase + Firestore (version gratuite / GitHub Pages)
-// Les produits et prix sont partagés entre tous les visiteurs.
-// Les images sont hébergées dans le dossier images/ de GitHub.
+// Firebase + Firestore + GitHub Images
+// Version gratuite - sans Firebase Storage
+// ============================================================
+
+
+// ============================================================
+// FIREBASE IMPORTS
 // ============================================================
 
 import {
@@ -43,14 +47,35 @@ const firebaseConfig = {
 
 
 // ============================================================
-// INITIALISATION
+// INITIALIZE FIREBASE
 // ============================================================
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+let app;
+let auth;
+let db;
 
-const productsRef = collection(db, "products");
+try {
+
+  app = initializeApp(firebaseConfig);
+
+  auth = getAuth(app);
+
+  db = getFirestore(app);
+
+  console.log("Firebase initialisé ✅");
+
+} catch (error) {
+
+  console.error(
+    "Erreur initialisation Firebase:",
+    error
+  );
+
+  alert(
+    "Erreur de connexion à Firebase.\n\n" +
+    error.message
+  );
+}
 
 
 // ============================================================
@@ -62,6 +87,7 @@ const WHATSAPP_NUMBER = "212600000000";
 let products = [];
 let activeFilter = "Tous";
 let currentUser = null;
+let editingImageData = null;
 
 
 // ============================================================
@@ -77,7 +103,6 @@ const emptyState =
 const collectionFilters =
   document.getElementById("collectionFilters");
 
-
 const adminPanel =
   document.getElementById("adminPanel");
 
@@ -86,7 +111,6 @@ const adminList =
 
 const productForm =
   document.getElementById("productForm");
-
 
 const pName =
   document.getElementById("pName");
@@ -109,7 +133,6 @@ const pImage =
 const pDesc =
   document.getElementById("pDesc");
 
-
 const imagePreview =
   document.getElementById("imagePreview");
 
@@ -119,17 +142,14 @@ const imagePreviewRow =
 const removeImage =
   document.getElementById("removeImage");
 
-
 const exportCatalog =
   document.getElementById("exportCatalog");
-
 
 const adminToggleLink =
   document.getElementById("adminToggleLink");
 
 const closeAdmin =
   document.getElementById("closeAdmin");
-
 
 const oName =
   document.getElementById("oName");
@@ -155,12 +175,41 @@ const oAddress =
 const oMessage =
   document.getElementById("oMessage");
 
-
 const whatsappBtn =
   document.getElementById("whatsappBtn");
 
 const orderConfirm =
   document.getElementById("orderConfirm");
+
+
+// ============================================================
+// GLOBAL ERROR HANDLING
+// ============================================================
+
+window.addEventListener(
+  "error",
+  (event) => {
+
+    console.error(
+      "Erreur JavaScript:",
+      event.error || event.message
+    );
+
+  }
+);
+
+
+window.addEventListener(
+  "unhandledrejection",
+  (event) => {
+
+    console.error(
+      "Promise non gérée:",
+      event.reason
+    );
+
+  }
+);
 
 
 // ============================================================
@@ -175,195 +224,410 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-
 }
 
 
+// ============================================================
+// IMAGE URL NORMALIZATION
+// ============================================================
+
+function normalizeImageUrl(value) {
+
+  const image =
+    String(value || "").trim();
+
+  if (!image) {
+    return "";
+  }
+
+  // Data URL
+  if (
+    image.startsWith("data:image/")
+  ) {
+    return image;
+  }
+
+  // Full URL
+  if (
+    image.startsWith("http://") ||
+    image.startsWith("https://")
+  ) {
+    return image;
+  }
+
+  // Relative path
+  let cleanPath =
+    image
+      .replace(/^\.\/+/, "")
+      .replace(/^\/+/, "");
+
+  // Encode spaces and special characters
+  const parts =
+    cleanPath
+      .split("/")
+      .map(
+        (part) =>
+          encodeURIComponent(
+            decodeURIComponentSafe(part)
+          )
+      );
+
+  return "./" + parts.join("/");
+}
+
+
+// ============================================================
+// SAFE URL DECODER
+// ============================================================
+
+function decodeURIComponentSafe(value) {
+
+  try {
+
+    return decodeURIComponent(value);
+
+  } catch {
+
+    return value;
+  }
+}
+
+
+// ============================================================
+// PRICE
+// ============================================================
+
 function formatPrice(price) {
 
-  const number = Number(price);
+  const number =
+    Number(price);
 
   if (Number.isNaN(number)) {
+
     return "0 DH";
   }
 
   return `${number.toLocaleString("fr-FR")} DH`;
-
-}
-
-
-function normalizeImageUrl(value) {
-
-  const url =
-    String(value ?? "").trim();
-
-  if (!url) {
-    return "";
-  }
-
-  if (
-    !url.startsWith("http://") &&
-    !url.startsWith("https://") &&
-    !url.startsWith("/") &&
-    !url.startsWith("./") &&
-    !url.startsWith("data:")
-  ) {
-
-    return `./${url}`;
-
-  }
-
-  return url;
-
 }
 
 
 // ============================================================
-// IMAGE INPUT
+// FIRESTORE PRODUCTS
 // ============================================================
 
-if (pImageFile) {
+let productsRef = null;
 
-  const fileLabel =
-    pImageFile.closest("label");
+if (db) {
 
-  if (fileLabel) {
-    fileLabel.hidden = true;
-  }
-
-  pImageFile.disabled = true;
-
+  productsRef =
+    collection(
+      db,
+      "products"
+    );
 }
 
 
-if (imagePreviewRow) {
-  imagePreviewRow.hidden = true;
-}
+// ============================================================
+// ADMIN AUTHENTICATION
+// ============================================================
+//
+// IMPORTANT:
+// This listener is intentionally placed early so that
+// "Espace gérant" remains functional even if another
+// initialization part encounters an error.
+// ============================================================
 
+if (adminToggleLink) {
 
-if (removeImage) {
+  adminToggleLink.addEventListener(
+    "click",
+    async (event) => {
 
-  removeImage.addEventListener("click", () => {
+      event.preventDefault();
 
-    if (pImage) {
-      pImage.value = "";
-    }
+      console.log(
+        "Espace gérant cliqué"
+      );
 
-    if (imagePreview) {
-      imagePreview.removeAttribute("src");
-    }
+      // Already connected
+      if (currentUser) {
 
-    if (imagePreviewRow) {
-      imagePreviewRow.hidden = true;
-    }
+        openAdminPanel();
 
-  });
-
-}
-
-
-if (pImage) {
-
-  pImage.addEventListener("input", () => {
-
-    const url =
-      normalizeImageUrl(pImage.value);
-
-    if (!url) {
-
-      if (imagePreviewRow) {
-        imagePreviewRow.hidden = true;
+        return;
       }
 
-      if (imagePreview) {
-        imagePreview.removeAttribute("src");
+      const email =
+        prompt(
+          "Email du gérant :"
+        );
+
+      if (!email) {
+
+        return;
       }
 
-      return;
+      const password =
+        prompt(
+          "Mot de passe du gérant :"
+        );
 
-    }
+      if (!password) {
 
-    if (imagePreview) {
+        return;
+      }
 
-      imagePreview.src = url;
+      if (!auth) {
 
-      imagePreview.onerror = () => {
+        alert(
+          "Firebase Authentication n'est pas disponible."
+        );
 
-        if (imagePreviewRow) {
-          imagePreviewRow.hidden = true;
+        return;
+      }
+
+      try {
+
+        await signInWithEmailAndPassword(
+          auth,
+          email.trim(),
+          password
+        );
+
+        alert(
+          "Connexion réussie ✅"
+        );
+
+        openAdminPanel();
+
+      } catch (error) {
+
+        console.error(
+          "Erreur connexion:",
+          error
+        );
+
+        let message =
+          "Connexion impossible.\n\n";
+
+        if (
+          error.code ===
+          "auth/invalid-credential"
+        ) {
+
+          message +=
+            "Email ou mot de passe incorrect.";
+
+        } else if (
+          error.code ===
+          "auth/user-not-found"
+        ) {
+
+          message +=
+            "Utilisateur introuvable.";
+
+        } else if (
+          error.code ===
+          "auth/wrong-password"
+        ) {
+
+          message +=
+            "Mot de passe incorrect.";
+
+        } else if (
+          error.code ===
+          "auth/invalid-email"
+        ) {
+
+          message +=
+            "Adresse email invalide.";
+
+        } else if (
+          error.code ===
+          "auth/too-many-requests"
+        ) {
+
+          message +=
+            "Trop de tentatives. Réessayez plus tard.";
+
+        } else {
+
+          message +=
+            error.message ||
+            "Erreur inconnue.";
         }
 
-      };
-
-      imagePreview.onload = () => {
-
-        if (imagePreviewRow) {
-          imagePreviewRow.hidden = false;
-        }
-
-      };
-
+        alert(message);
+      }
     }
-
-  });
-
+  );
 }
 
 
 // ============================================================
-// FIRESTORE - PRODUITS EN TEMPS RÉEL
+// AUTH STATE
 // ============================================================
 
-onSnapshot(
-  productsRef,
+if (auth) {
 
-  (snapshot) => {
+  onAuthStateChanged(
+    auth,
+    (user) => {
 
-    products =
-      snapshot.docs.map((item) => ({
-        id: item.id,
-        ...item.data()
-      }));
+      currentUser =
+        user || null;
+
+      if (user) {
+
+        console.log(
+          "Manager connecté :",
+          user.email
+        );
+
+      } else {
+
+        console.log(
+          "Aucun manager connecté."
+        );
+      }
+    }
+  );
+}
 
 
-    products.sort((a, b) => {
+// ============================================================
+// OPEN ADMIN PANEL
+// ============================================================
 
-      const dateA =
-        a.createdAt?.seconds || 0;
+function openAdminPanel() {
 
-      const dateB =
-        b.createdAt?.seconds || 0;
-
-      return dateB - dateA;
-
-    });
-
-
-    renderFilters();
-    renderProducts();
-    renderOrderOptions();
-    renderAdminList();
-
-  },
-
-  (error) => {
+  if (!adminPanel) {
 
     console.error(
-      "Firestore error:",
-      error
+      "adminPanel introuvable dans index.html"
     );
 
-    if (emptyState) {
-
-      emptyState.hidden = false;
-
-      emptyState.textContent =
-        "Impossible de charger les produits. Vérifiez la connexion Firebase.";
-
-    }
-
+    return;
   }
-);
+
+  adminPanel.hidden = false;
+
+  renderAdminList();
+
+  adminPanel.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+
+// ============================================================
+// CLOSE ADMIN PANEL
+// ============================================================
+
+if (closeAdmin) {
+
+  closeAdmin.addEventListener(
+    "click",
+    async () => {
+
+      if (adminPanel) {
+
+        adminPanel.hidden = true;
+      }
+
+      if (auth) {
+
+        try {
+
+          await signOut(auth);
+
+        } catch (error) {
+
+          console.error(
+            "Erreur déconnexion:",
+            error
+          );
+        }
+      }
+    }
+  );
+}
+
+
+// ============================================================
+// FIRESTORE - REAL TIME PRODUCTS
+// ============================================================
+
+if (productsRef) {
+
+  onSnapshot(
+    productsRef,
+
+    (snapshot) => {
+
+      products =
+        snapshot.docs.map(
+          (item) => ({
+            id: item.id,
+            ...item.data()
+          })
+        );
+
+      // Sort newest first
+      products.sort(
+        (a, b) => {
+
+          const dateA =
+            a.createdAt?.seconds || 0;
+
+          const dateB =
+            b.createdAt?.seconds || 0;
+
+          return dateB - dateA;
+        }
+      );
+
+      console.log(
+        `${products.length} produit(s) chargé(s) ✅`
+      );
+
+      renderFilters();
+
+      renderProducts();
+
+      renderOrderOptions();
+
+      renderAdminList();
+    },
+
+    (error) => {
+
+      console.error(
+        "Firestore error:",
+        error
+      );
+
+      if (emptyState) {
+
+        emptyState.hidden = false;
+
+        emptyState.textContent =
+          "Impossible de charger les produits.";
+      }
+
+      if (
+        error.code ===
+        "permission-denied"
+      ) {
+
+        console.error(
+          "Firestore Rules refusent la lecture."
+        );
+      }
+    }
+  );
+}
 
 
 // ============================================================
@@ -373,323 +637,318 @@ onSnapshot(
 function renderFilters() {
 
   if (!collectionFilters) {
+
     return;
   }
 
-
   const categories = [
     "Tous",
-
     ...new Set(
       products
-        .map((product) => product.category)
+        .map(
+          (product) =>
+            product.category
+        )
         .filter(Boolean)
     )
   ];
 
+  if (
+    !categories.includes(
+      activeFilter
+    )
+  ) {
 
-  if (!categories.includes(activeFilter)) {
-    activeFilter = "Tous";
+    activeFilter =
+      "Tous";
   }
 
-
-  collectionFilters.innerHTML = "";
-
-
-  categories.forEach((category) => {
-
-    const button =
-      document.createElement("button");
-
-    button.type = "button";
-
-    button.className =
-      category === activeFilter
-        ? "filter-btn active"
-        : "filter-btn";
-
-    button.textContent = category;
-
-
-    button.addEventListener(
-      "click",
-      () => {
-
-        activeFilter = category;
-
-        renderFilters();
-
-        renderProducts();
-
-      }
-    );
-
-
-    collectionFilters.appendChild(button);
-
-  });
-
-}
-
-
-// ============================================================
-// PRODUCTS
-// ============================================================
-
-function getFilteredProducts() {
-
-  if (activeFilter === "Tous") {
-    return products;
-  }
-
-  return products.filter(
-    (product) =>
-      product.category === activeFilter
-  );
-
-}
-
-
-function renderProducts() {
-
-  if (!productGrid) {
-    return;
-  }
-
-
-  const filteredProducts =
-    getFilteredProducts();
-
-
-  productGrid.innerHTML = "";
-
-
-  if (filteredProducts.length === 0) {
-
-    if (emptyState) {
-
-      emptyState.hidden = false;
-
-      emptyState.textContent =
-        "Aucun produit disponible pour le moment.";
-
-    }
-
-    return;
-
-  }
-
-
-  if (emptyState) {
-    emptyState.hidden = true;
-  }
-
-
-  filteredProducts.forEach((product) => {
-
-    const card =
-      document.createElement("article");
-
-    card.className =
-      "product-card";
-
-
-    const imageUrl =
-      normalizeImageUrl(product.image);
-
-
-    const image =
-      imageUrl
-
-        ? `
-          <img
-            src="${escapeHtml(imageUrl)}"
-            alt="${escapeHtml(product.name)}"
-            loading="lazy"
-            onerror="
-              this.parentElement.innerHTML =
-              '<div class=&quot;product-no-image&quot;>Image indisponible</div>';
-            "
-          >
-        `
-
-        : `
-          <div class="product-no-image">
-            XN-KODASSY
-          </div>
-        `;
-
-
-    const sizes =
-      Array.isArray(product.sizes)
-
-        ? product.sizes
-            .map(escapeHtml)
-            .join(" · ")
-
-        : escapeHtml(
-            product.sizes || ""
-          );
-
-
-    card.innerHTML = `
-
-      <div class="product-image">
-
-        ${image}
-
-      </div>
-
-
-      <div class="product-info">
-
-        <div class="product-category">
-
-          ${escapeHtml(
-            product.category || ""
-          )}
-
-        </div>
-
-
-        <h3>
-
-          ${escapeHtml(
-            product.name || ""
-          )}
-
-        </h3>
-
-
-        <div class="product-price">
-
-          ${formatPrice(
-            product.price
-          )}
-
-        </div>
-
-
-        ${
-          sizes
-            ? `
-              <div class="product-sizes">
-                ${sizes}
-              </div>
-            `
-            : ""
-        }
-
-
-        ${
-          product.desc
-            ? `
-              <p class="product-desc">
-                ${escapeHtml(
-                  product.desc
-                )}
-              </p>
-            `
-            : ""
-        }
-
-
-        <button
-          type="button"
-          class="btn btn-primary order-product"
-          data-id="${escapeHtml(
-            product.id
-          )}"
-        >
-
-          Commander
-
-        </button>
-
-
-      </div>
-
-    `;
-
-
-    productGrid.appendChild(card);
-
-  });
-
-
-  // ==========================================================
-  // BOUTON COMMANDER
-  // ==========================================================
-
-  document
-    .querySelectorAll(".order-product")
-    .forEach((button) => {
+  collectionFilters.innerHTML =
+    "";
+
+  categories.forEach(
+    (category) => {
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+      button.type =
+        "button";
+
+      button.className =
+        category === activeFilter
+          ? "filter-btn active"
+          : "filter-btn";
+
+      button.textContent =
+        category;
 
       button.addEventListener(
         "click",
         () => {
 
-          const product =
-            products.find(
-              (item) =>
-                item.id ===
-                button.dataset.id
-            );
+          activeFilter =
+            category;
 
+          renderFilters();
 
-          if (!product) {
-            return;
-          }
-
-
-          // Sélectionner automatiquement
-          // le produit dans le formulaire
-
-          selectProductForOrder(product);
-
-
-          // Trouver le formulaire
-
-          const orderSection =
-            document.getElementById(
-              "commande"
-            );
-
-
-          if (orderSection) {
-
-            // Mettre l'ancre dans l'URL
-
-            window.location.hash =
-              "commande";
-
-
-            // Faire défiler jusqu'au formulaire
-
-            setTimeout(() => {
-
-              orderSection.scrollIntoView({
-                behavior: "smooth",
-                block: "start"
-              });
-
-            }, 100);
-
-          }
-
+          renderProducts();
         }
       );
 
-    });
-
+      collectionFilters.appendChild(
+        button
+      );
+    }
+  );
 }
 
 
 // ============================================================
-// ORDER FORM
+// FILTERED PRODUCTS
 // ============================================================
 
-function selectProductForOrder(product) {
+function getFilteredProducts() {
+
+  if (
+    activeFilter ===
+    "Tous"
+  ) {
+
+    return products;
+  }
+
+  return products.filter(
+    (product) =>
+      product.category ===
+      activeFilter
+  );
+}
+
+
+// ============================================================
+// PRODUCTS DISPLAY
+// ============================================================
+
+function renderProducts() {
+
+  if (!productGrid) {
+
+    return;
+  }
+
+  const filteredProducts =
+    getFilteredProducts();
+
+  productGrid.innerHTML =
+    "";
+
+  if (
+    filteredProducts.length ===
+    0
+  ) {
+
+    if (emptyState) {
+
+      emptyState.hidden =
+        false;
+    }
+
+    return;
+  }
+
+  if (emptyState) {
+
+    emptyState.hidden =
+      true;
+  }
+
+  filteredProducts.forEach(
+    (product) => {
+
+      const card =
+        document.createElement(
+          "article"
+        );
+
+      card.className =
+        "product-card";
+
+      const imageUrl =
+        normalizeImageUrl(
+          product.image
+        );
+
+      const image =
+        imageUrl
+
+          ? `
+            <img
+              src="${escapeHtml(imageUrl)}"
+              alt="${escapeHtml(product.name)}"
+              loading="lazy"
+              onerror="this.style.display='none'; this.parentElement.classList.add('image-error');"
+            >
+          `
+
+          : `
+            <div class="product-no-image">
+              XN-KODASSY
+            </div>
+          `;
+
+
+      const sizes =
+        Array.isArray(
+          product.sizes
+        )
+
+          ? product.sizes
+              .map(
+                (size) =>
+                  escapeHtml(size)
+              )
+              .join(" · ")
+
+          : escapeHtml(
+              product.sizes || ""
+            );
+
+
+      card.innerHTML = `
+
+        <div class="product-image">
+
+          ${image}
+
+        </div>
+
+
+        <div class="product-info">
+
+          <div class="product-category">
+            ${escapeHtml(
+              product.category || ""
+            )}
+          </div>
+
+
+          <h3>
+            ${escapeHtml(
+              product.name || ""
+            )}
+          </h3>
+
+
+          <div class="product-price">
+            ${formatPrice(
+              product.price
+            )}
+          </div>
+
+
+          ${
+            sizes
+              ? `
+                <div class="product-sizes">
+                  ${sizes}
+                </div>
+              `
+              : ""
+          }
+
+
+          ${
+            product.desc
+              ? `
+                <p class="product-desc">
+                  ${escapeHtml(
+                    product.desc
+                  )}
+                </p>
+              `
+              : ""
+          }
+
+
+          <button
+            type="button"
+            class="btn btn-primary order-product"
+            data-id="${escapeHtml(
+              product.id
+            )}"
+          >
+            Commander
+          </button>
+
+        </div>
+
+      `;
+
+      productGrid.appendChild(
+        card
+      );
+    }
+  );
+
+
+  document
+    .querySelectorAll(
+      ".order-product"
+    )
+    .forEach(
+      (button) => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            const product =
+              products.find(
+                (item) =>
+                  item.id ===
+                  button.dataset.id
+              );
+
+            if (!product) {
+
+              return;
+            }
+
+            selectProductForOrder(
+              product
+            );
+
+            const orderSection =
+              document.getElementById(
+                "order"
+              );
+
+            if (orderSection) {
+
+              orderSection.scrollIntoView(
+                {
+                  behavior:
+                    "smooth"
+                }
+              );
+            }
+          }
+        );
+      }
+    );
+}
+
+
+// ============================================================
+// SELECT PRODUCT FOR ORDER
+// ============================================================
+
+function selectProductForOrder(
+  product
+) {
 
   if (oArticle) {
 
@@ -699,22 +958,28 @@ function selectProductForOrder(product) {
     oArticle.dispatchEvent(
       new Event("change")
     );
-
   }
 
 
   if (oSize) {
 
     const availableSizes =
-      Array.isArray(product.sizes)
+      Array.isArray(
+        product.sizes
+      )
+
         ? product.sizes
         : [];
 
 
-    oSize.innerHTML = "";
+    oSize.innerHTML =
+      "";
 
 
-    if (availableSizes.length > 0) {
+    if (
+      availableSizes.length >
+      0
+    ) {
 
       availableSizes.forEach(
         (size) => {
@@ -724,7 +989,8 @@ function selectProductForOrder(product) {
               "option"
             );
 
-          option.value = size;
+          option.value =
+            size;
 
           option.textContent =
             size;
@@ -732,7 +998,6 @@ function selectProductForOrder(product) {
           oSize.appendChild(
             option
           );
-
         }
       );
 
@@ -743,7 +1008,8 @@ function selectProductForOrder(product) {
           "option"
         );
 
-      option.value = "";
+      option.value =
+        "";
 
       option.textContent =
         "Taille unique";
@@ -751,76 +1017,50 @@ function selectProductForOrder(product) {
       oSize.appendChild(
         option
       );
-
     }
-
   }
-
 }
 
 
 // ============================================================
-// ORDER OPTIONS
+// ORDER ARTICLE OPTIONS
 // ============================================================
 
 function renderOrderOptions() {
 
   if (!oArticle) {
+
     return;
   }
-
 
   const previousValue =
     oArticle.value;
 
+  oArticle.innerHTML =
+    "";
 
-  oArticle.innerHTML = "";
 
+  products.forEach(
+    (product) => {
 
-  if (products.length === 0) {
+      const option =
+        document.createElement(
+          "option"
+        );
 
-    const option =
-      document.createElement(
-        "option"
+      option.value =
+        product.name;
+
+      option.textContent =
+        `${product.name} — ${formatPrice(
+          product.price
+        )}`;
+
+      oArticle.appendChild(
+        option
       );
-
-    option.value = "";
-
-    option.textContent =
-      "Aucun produit disponible";
-
-    oArticle.appendChild(option);
-
-    updateOrderSizes();
-
-    return;
-
-  }
-
-
-  products.forEach((product) => {
-
-    const option =
-      document.createElement(
-        "option"
-      );
-
-
-    option.value =
-      product.name;
-
-
-    option.textContent =
-      `${product.name} — ${formatPrice(
-        product.price
-      )}`;
-
-
-    oArticle.appendChild(
-      option
-    );
-
-  });
+    }
+  );
 
 
   if (
@@ -834,25 +1074,26 @@ function renderOrderOptions() {
 
     oArticle.value =
       previousValue;
-
   }
 
 
   updateOrderSizes();
-
 }
 
 
 // ============================================================
-// ORDER SIZES
+// UPDATE ORDER SIZES
 // ============================================================
 
 function updateOrderSizes() {
 
-  if (!oArticle || !oSize) {
+  if (
+    !oArticle ||
+    !oSize
+  ) {
+
     return;
   }
-
 
   const product =
     products.find(
@@ -861,29 +1102,37 @@ function updateOrderSizes() {
         oArticle.value
     );
 
-
-  oSize.innerHTML = "";
+  oSize.innerHTML =
+    "";
 
 
   if (!product) {
+
     return;
   }
 
 
   const sizes =
-    Array.isArray(product.sizes)
+    Array.isArray(
+      product.sizes
+    )
+
       ? product.sizes
       : [];
 
 
-  if (sizes.length === 0) {
+  if (
+    sizes.length ===
+    0
+  ) {
 
     const option =
       document.createElement(
         "option"
       );
 
-    option.value = "";
+    option.value =
+      "";
 
     option.textContent =
       "Taille unique";
@@ -893,30 +1142,34 @@ function updateOrderSizes() {
     );
 
     return;
-
   }
 
 
-  sizes.forEach((size) => {
+  sizes.forEach(
+    (size) => {
 
-    const option =
-      document.createElement(
-        "option"
+      const option =
+        document.createElement(
+          "option"
+        );
+
+      option.value =
+        size;
+
+      option.textContent =
+        size;
+
+      oSize.appendChild(
+        option
       );
-
-    option.value = size;
-
-    option.textContent =
-      size;
-
-    oSize.appendChild(
-      option
-    );
-
-  });
-
+    }
+  );
 }
 
+
+// ============================================================
+// ARTICLE CHANGE
+// ============================================================
 
 if (oArticle) {
 
@@ -924,12 +1177,11 @@ if (oArticle) {
     "change",
     updateOrderSizes
   );
-
 }
 
 
 // ============================================================
-// WHATSAPP
+// WHATSAPP ORDER
 // ============================================================
 
 if (whatsappBtn) {
@@ -940,30 +1192,37 @@ if (whatsappBtn) {
 
       event.preventDefault();
 
-
       const name =
-        oName?.value.trim() || "";
+        oName?.value.trim() ||
+        "";
 
       const phone =
-        oPhone?.value.trim() || "";
+        oPhone?.value.trim() ||
+        "";
 
       const article =
-        oArticle?.value.trim() || "";
+        oArticle?.value.trim() ||
+        "";
 
       const size =
-        oSize?.value.trim() || "";
+        oSize?.value.trim() ||
+        "";
 
       const qty =
-        oQty?.value || "1";
+        oQty?.value ||
+        "1";
 
       const city =
-        oCity?.value.trim() || "";
+        oCity?.value.trim() ||
+        "";
 
       const address =
-        oAddress?.value.trim() || "";
+        oAddress?.value.trim() ||
+        "";
 
       const message =
-        oMessage?.value.trim() || "";
+        oMessage?.value.trim() ||
+        "";
 
 
       if (
@@ -977,12 +1236,10 @@ if (whatsappBtn) {
         );
 
         return;
-
       }
 
 
       const text = `
-
 Bonjour XN-KODASSY 👋
 
 Je souhaite commander :
@@ -998,7 +1255,6 @@ Adresse : ${address}
 
 Message :
 ${message}
-
       `.trim();
 
 
@@ -1015,177 +1271,188 @@ ${message}
 
 
       if (orderConfirm) {
+
         orderConfirm.hidden =
           false;
       }
-
     }
   );
-
 }
 
 
 // ============================================================
-// AUTHENTIFICATION GERANT
+// IMAGE FILE INPUT
+// ============================================================
+//
+// IMPORTANT:
+// We no longer upload this file to Firebase Storage.
+// We only keep the preview locally.
+// The actual product image should be uploaded manually
+// to the GitHub "images" folder.
 // ============================================================
 
-onAuthStateChanged(
-  auth,
-  (user) => {
+if (pImageFile) {
 
-    currentUser = user;
+  pImageFile.addEventListener(
+    "change",
+    () => {
 
+      const file =
+        pImageFile.files?.[0];
 
-    if (user) {
+      if (!file) {
 
-      console.log(
-        "Manager connecté :",
-        user.email
-      );
-
-    } else {
-
-      console.log(
-        "Aucun manager connecté."
-      );
-
-    }
-
-  }
-);
-
-
-// ============================================================
-// ESPACE GERANT
-// ============================================================
-
-if (adminToggleLink) {
-
-  adminToggleLink.addEventListener(
-    "click",
-    async (event) => {
-
-      event.preventDefault();
-
-
-      if (currentUser) {
-
-        openAdminPanel();
-
-        return;
-
-      }
-
-
-      const email =
-        prompt(
-          "Email du gérant :"
-        );
-
-
-      if (!email) {
         return;
       }
 
 
-      const password =
-        prompt(
-          "Mot de passe du gérant :"
-        );
-
-
-      if (!password) {
-        return;
-      }
-
-
-      try {
-
-        await signInWithEmailAndPassword(
-          auth,
-          email.trim(),
-          password
-        );
-
-
-        openAdminPanel();
-
-
-      } catch (error) {
-
-        console.error(error);
-
+      if (
+        !file.type.startsWith(
+          "image/"
+        )
+      ) {
 
         alert(
-          "Connexion impossible.\n\n" +
-          "Vérifiez l'email et le mot de passe."
+          "Veuillez sélectionner une image."
         );
 
+        pImageFile.value =
+          "";
+
+        return;
       }
 
+
+      const reader =
+        new FileReader();
+
+
+      reader.onload =
+        (event) => {
+
+          editingImageData =
+            event.target.result;
+
+
+          if (imagePreview) {
+
+            imagePreview.src =
+              editingImageData;
+          }
+
+
+          if (imagePreviewRow) {
+
+            imagePreviewRow.hidden =
+              false;
+          }
+        };
+
+
+      reader.readAsDataURL(
+        file
+      );
     }
   );
-
 }
 
 
 // ============================================================
-// OPEN ADMIN PANEL
+// IMAGE URL PREVIEW
 // ============================================================
 
-function openAdminPanel() {
+if (pImage) {
 
-  if (!adminPanel) {
-    return;
-  }
+  pImage.addEventListener(
+    "input",
+    () => {
+
+      const value =
+        pImage.value.trim();
+
+      if (!value) {
+
+        if (imagePreviewRow) {
+
+          imagePreviewRow.hidden =
+            true;
+        }
+
+        return;
+      }
 
 
-  adminPanel.hidden = false;
+      const imageUrl =
+        normalizeImageUrl(
+          value
+        );
 
 
-  adminPanel.scrollIntoView({
-    behavior: "smooth"
-  });
+      if (imagePreview) {
+
+        imagePreview.src =
+          imageUrl;
+      }
 
 
-  renderAdminList();
+      if (imagePreviewRow) {
 
+        imagePreviewRow.hidden =
+          false;
+      }
+    }
+  );
 }
 
 
 // ============================================================
-// CLOSE ADMIN PANEL
+// REMOVE IMAGE
 // ============================================================
 
-if (closeAdmin) {
+if (removeImage) {
 
-  closeAdmin.addEventListener(
+  removeImage.addEventListener(
     "click",
-    async () => {
+    () => {
 
-      if (adminPanel) {
-        adminPanel.hidden = true;
+      editingImageData =
+        null;
+
+
+      if (pImageFile) {
+
+        pImageFile.value =
+          "";
       }
 
 
-      try {
+      if (pImage) {
 
-        await signOut(auth);
-
-      } catch (error) {
-
-        console.error(error);
-
+        pImage.value =
+          "";
       }
 
+
+      if (imagePreviewRow) {
+
+        imagePreviewRow.hidden =
+          true;
+      }
+
+
+      if (imagePreview) {
+
+        imagePreview.removeAttribute(
+          "src"
+        );
+      }
     }
   );
-
 }
 
 
 // ============================================================
-// ADD PRODUCT -> FIRESTORE
+// ADD PRODUCT
 // ============================================================
 
 if (productForm) {
@@ -1204,35 +1471,53 @@ if (productForm) {
         );
 
         return;
+      }
 
+
+      if (!productsRef) {
+
+        alert(
+          "Firestore n'est pas disponible."
+        );
+
+        return;
       }
 
 
       const name =
-        pName?.value.trim() || "";
+        pName?.value.trim() ||
+        "";
 
 
       const price =
-        Number(pPrice?.value);
+        Number(
+          pPrice?.value
+        );
 
 
       const category =
-        pCategory?.value.trim() || "";
+        pCategory?.value.trim() ||
+        "";
 
 
       const sizesText =
-        pSizes?.value.trim() || "";
+        pSizes?.value.trim() ||
+        "";
 
 
       const description =
-        pDesc?.value.trim() || "";
+        pDesc?.value.trim() ||
+        "";
 
 
-      const imageUrl =
-        normalizeImageUrl(
-          pImage?.value || ""
-        );
+      const imageInput =
+        pImage?.value.trim() ||
+        "";
 
+
+      // ------------------------------------------------------
+      // VALIDATION
+      // ------------------------------------------------------
 
       if (!name) {
 
@@ -1241,18 +1526,18 @@ if (productForm) {
         );
 
         return;
-
       }
 
 
-      if (Number.isNaN(price)) {
+      if (
+        Number.isNaN(price)
+      ) {
 
         alert(
           "Veuillez saisir un prix valide."
         );
 
         return;
-
       }
 
 
@@ -1283,26 +1568,46 @@ if (productForm) {
 
         submitButton.textContent =
           "Enregistrement...";
-
       }
 
 
       try {
 
+        // ----------------------------------------------------
+        // IMAGE
+        // ----------------------------------------------------
+        //
+        // No Firebase Storage.
+        //
+        // The value entered in #pImage is saved directly
+        // to Firestore.
+        //
+        // Example:
+        // images/PREDATOR BYDA.jpeg
+        //
+        // The image itself must exist in GitHub.
+        // ----------------------------------------------------
+
+        let finalImage =
+          normalizeImageUrl(
+            imageInput
+          );
+
+
+        // ----------------------------------------------------
+        // SAVE PRODUCT TO FIRESTORE
+        // ----------------------------------------------------
+
         await addDoc(
           productsRef,
           {
-
             name,
-
             price,
-
             category,
-
             sizes,
 
             image:
-              imageUrl,
+              finalImage,
 
             imagePath:
               "",
@@ -1312,7 +1617,6 @@ if (productForm) {
 
             createdAt:
               serverTimestamp()
-
           }
         );
 
@@ -1322,16 +1626,25 @@ if (productForm) {
         );
 
 
+        // ----------------------------------------------------
+        // RESET FORM
+        // ----------------------------------------------------
+
         productForm.reset();
+
+        editingImageData =
+          null;
 
 
         if (imagePreviewRow) {
+
           imagePreviewRow.hidden =
             true;
         }
 
 
         if (imagePreview) {
+
           imagePreview.removeAttribute(
             "src"
           );
@@ -1346,9 +1659,28 @@ if (productForm) {
         );
 
 
+        let message =
+          "Erreur lors de l'ajout du produit.\n\n";
+
+
+        if (
+          error.code ===
+          "permission-denied"
+        ) {
+
+          message +=
+            "Vous n'avez pas les permissions nécessaires dans Firestore.";
+
+        } else {
+
+          message +=
+            error.message ||
+            "Erreur inconnue.";
+        }
+
+
         alert(
-          "Erreur lors de l'ajout du produit.\n\n" +
-          error.message
+          message
         );
 
 
@@ -1361,14 +1693,10 @@ if (productForm) {
 
           submitButton.textContent =
             "Ajouter le produit";
-
         }
-
       }
-
     }
   );
-
 }
 
 
@@ -1379,152 +1707,171 @@ if (productForm) {
 function renderAdminList() {
 
   if (!adminList) {
+
     return;
   }
 
 
-  adminList.innerHTML = "";
+  adminList.innerHTML =
+    "";
 
 
-  if (products.length === 0) {
+  if (
+    products.length ===
+    0
+  ) {
 
     adminList.innerHTML =
       "<p>Aucun produit pour le moment.</p>";
 
     return;
-
   }
 
 
-  products.forEach((product) => {
+  products.forEach(
+    (product) => {
 
-    const item =
-      document.createElement(
-        "div"
+      const item =
+        document.createElement(
+          "div"
+        );
+
+
+      item.className =
+        "admin-product-item";
+
+
+      item.innerHTML = `
+
+        <div>
+
+          <strong>
+            ${escapeHtml(
+              product.name
+            )}
+          </strong>
+
+          <span>
+            ${formatPrice(
+              product.price
+            )}
+          </span>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="delete-product"
+          data-id="${escapeHtml(
+            product.id
+          )}"
+        >
+          Supprimer
+        </button>
+
+      `;
+
+
+      adminList.appendChild(
+        item
       );
-
-
-    item.className =
-      "admin-product-item";
-
-
-    item.innerHTML = `
-
-      <div>
-
-        <strong>
-
-          ${escapeHtml(
-            product.name
-          )}
-
-        </strong>
-
-
-        <span>
-
-          ${formatPrice(
-            product.price
-          )}
-
-        </span>
-
-      </div>
-
-
-      <button
-        type="button"
-        class="delete-product"
-        data-id="${escapeHtml(
-          product.id
-        )}"
-      >
-
-        Supprimer
-
-      </button>
-
-    `;
-
-
-    adminList.appendChild(
-      item
-    );
-
-  });
+    }
+  );
 
 
   document
     .querySelectorAll(
       ".delete-product"
     )
-    .forEach((button) => {
+    .forEach(
+      (button) => {
 
-      button.addEventListener(
-        "click",
-        async () => {
+        button.addEventListener(
+          "click",
+          async () => {
 
-          const productId =
-            button.dataset.id;
+            if (!currentUser) {
 
+              alert(
+                "Vous devez être connecté comme gérant."
+              );
 
-          const product =
-            products.find(
-              (item) =>
-                item.id ===
-                productId
-            );
+              return;
+            }
 
 
-          if (!product) {
-            return;
+            const productId =
+              button.dataset.id;
+
+
+            const product =
+              products.find(
+                (item) =>
+                  item.id ===
+                  productId
+              );
+
+
+            if (!product) {
+
+              return;
+            }
+
+
+            const confirmed =
+              confirm(
+                `Supprimer "${product.name}" ?`
+              );
+
+
+            if (!confirmed) {
+
+              return;
+            }
+
+
+            try {
+
+              // ------------------------------------------------
+              // DELETE FIRESTORE DOCUMENT
+              // ------------------------------------------------
+              //
+              // No Storage deletion anymore.
+              // The image remains in GitHub.
+              // ------------------------------------------------
+
+              await deleteDoc(
+                doc(
+                  db,
+                  "products",
+                  productId
+                )
+              );
+
+
+              alert(
+                "Produit supprimé ✅"
+              );
+
+
+            } catch (error) {
+
+              console.error(
+                "Erreur suppression:",
+                error
+              );
+
+
+              alert(
+                "Erreur lors de la suppression.\n\n" +
+                error.message
+              );
+            }
           }
-
-
-          const confirmed =
-            confirm(
-              `Supprimer "${product.name}" ?`
-            );
-
-
-          if (!confirmed) {
-            return;
-          }
-
-
-          try {
-
-            await deleteDoc(
-              doc(
-                db,
-                "products",
-                productId
-              )
-            );
-
-
-            alert(
-              "Produit supprimé ✅"
-            );
-
-
-          } catch (error) {
-
-            console.error(error);
-
-
-            alert(
-              "Erreur lors de la suppression.\n\n" +
-              error.message
-            );
-
-          }
-
-        }
-      );
-
-    });
-
+        );
+      }
+    );
 }
 
 
@@ -1533,10 +1880,6 @@ function renderAdminList() {
 // ============================================================
 
 if (exportCatalog) {
-
-  exportCatalog.textContent =
-    "Exporter une sauvegarde";
-
 
   exportCatalog.addEventListener(
     "click",
@@ -1566,7 +1909,6 @@ if (exportCatalog) {
 
             desc:
               product.desc || ""
-
           })
         );
 
@@ -1601,11 +1943,12 @@ if (exportCatalog) {
         );
 
 
-      link.href = url;
+      link.href =
+        url;
 
 
       link.download =
-        "xn-kodassy-products-backup.json";
+        "xn-kodassy-products.json";
 
 
       document.body.appendChild(
@@ -1622,10 +1965,8 @@ if (exportCatalog) {
       URL.revokeObjectURL(
         url
       );
-
     }
   );
-
 }
 
 
@@ -1634,36 +1975,30 @@ if (exportCatalog) {
 // ============================================================
 
 const burger =
-  document.getElementById(
-    "burgerBtn"
+  document.querySelector(
+    ".burger"
   );
 
 const nav =
-  document.getElementById(
-    "mainNav"
+  document.querySelector(
+    ".nav"
   );
 
 
-if (burger && nav) {
+if (
+  burger &&
+  nav
+) {
 
   burger.addEventListener(
     "click",
     () => {
 
-      const isOpen =
-        nav.classList.toggle(
-          "open"
-        );
-
-
-      burger.setAttribute(
-        "aria-expanded",
-        String(isOpen)
+      nav.classList.toggle(
+        "open"
       );
-
     }
   );
-
 }
 
 
@@ -1681,7 +2016,6 @@ if (yearElement) {
 
   yearElement.textContent =
     new Date().getFullYear();
-
 }
 
 
@@ -1690,5 +2024,21 @@ if (yearElement) {
 // ============================================================
 
 console.log(
-  "XN-KODASSY Firebase + Firestore chargé ✅"
+  "================================================"
+);
+
+console.log(
+  "XN-KODASSY Firebase chargé ✅"
+);
+
+console.log(
+  "Mode: Firestore + GitHub Images"
+);
+
+console.log(
+  "Firebase Storage: DÉSACTIVÉ"
+);
+
+console.log(
+  "================================================"
 );
