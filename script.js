@@ -1,2044 +1,1277 @@
-// ============================================================
-// XN-KODASSY
-// Firebase + Firestore + GitHub Images
-// Version gratuite - sans Firebase Storage
-// ============================================================
+<!DOCTYPE html>
+<html lang="fr">
 
+<head>
 
-// ============================================================
-// FIREBASE IMPORTS
-// ============================================================
+    <meta charset="UTF-8">
 
-import {
-  initializeApp
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+    <title>XN-KODASSY | Football Shop</title>
 
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+    <meta name="description"
+          content="XN-KODASSY - Chaussures, tenues et accessoires de football.">
 
+    <link rel="preconnect"
+          href="https://fonts.googleapis.com">
 
-// ============================================================
-// FIREBASE CONFIG
-// ============================================================
+    <link rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossorigin>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDYceEA3iY6N20uZJ3PBMAdINgxTvRMWoI",
-  authDomain: "xn-kodassy.firebaseapp.com",
-  projectId: "xn-kodassy",
-  storageBucket: "xn-kodassy.firebasestorage.app",
-  messagingSenderId: "587033328645",
-  appId: "1:587033328645:web:f707f0e3c858342b3d706c",
-  measurementId: "G-966SCVK8DH"
-};
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet">
 
+    <link rel="stylesheet"
+          href="style.css">
 
-// ============================================================
-// INITIALIZE FIREBASE
-// ============================================================
+</head>
 
-let app;
-let auth;
-let db;
 
-try {
+<body>
 
-  app = initializeApp(firebaseConfig);
 
-  auth = getAuth(app);
+<!-- =====================================================
+     HEADER
+===================================================== -->
 
-  db = getFirestore(app);
+<header class="site-header"
+        id="top">
 
-  console.log("Firebase initialisé ✅");
+    <div class="header-inner">
 
-} catch (error) {
 
-  console.error(
-    "Erreur initialisation Firebase:",
-    error
-  );
+        <a href="#top"
+           class="brand">
 
-  alert(
-    "Erreur de connexion à Firebase.\n\n" +
-    error.message
-  );
-}
+            <img src="images/WhatsApp Image 2026-09-09 at 01.29.00.jpeg"
+                 alt="XN-KODASSY"
+                 class="brand-logo">
 
+            <div class="brand-text">
 
-// ============================================================
-// SETTINGS
-// ============================================================
+                <span>XN</span>-KODASSY
 
-const WHATSAPP_NUMBER = "212600000000";
-
-let products = [];
-let activeFilter = "Tous";
-let currentUser = null;
-let editingImageData = null;
-
-
-// ============================================================
-// DOM
-// ============================================================
-
-const productGrid =
-  document.getElementById("productGrid");
-
-const emptyState =
-  document.getElementById("emptyState");
-
-const collectionFilters =
-  document.getElementById("collectionFilters");
-
-const adminPanel =
-  document.getElementById("adminPanel");
-
-const adminList =
-  document.getElementById("adminList");
-
-const productForm =
-  document.getElementById("productForm");
-
-const pName =
-  document.getElementById("pName");
-
-const pPrice =
-  document.getElementById("pPrice");
-
-const pCategory =
-  document.getElementById("pCategory");
-
-const pSizes =
-  document.getElementById("pSizes");
-
-const pImageFile =
-  document.getElementById("pImageFile");
-
-const pImage =
-  document.getElementById("pImage");
-
-const pDesc =
-  document.getElementById("pDesc");
-
-const imagePreview =
-  document.getElementById("imagePreview");
-
-const imagePreviewRow =
-  document.getElementById("imagePreviewRow");
-
-const removeImage =
-  document.getElementById("removeImage");
-
-const exportCatalog =
-  document.getElementById("exportCatalog");
-
-const adminToggleLink =
-  document.getElementById("adminToggleLink");
-
-const closeAdmin =
-  document.getElementById("closeAdmin");
-
-const oName =
-  document.getElementById("oName");
-
-const oPhone =
-  document.getElementById("oPhone");
-
-const oArticle =
-  document.getElementById("oArticle");
-
-const oSize =
-  document.getElementById("oSize");
-
-const oQty =
-  document.getElementById("oQty");
-
-const oCity =
-  document.getElementById("oCity");
-
-const oAddress =
-  document.getElementById("oAddress");
-
-const oMessage =
-  document.getElementById("oMessage");
-
-const whatsappBtn =
-  document.getElementById("whatsappBtn");
-
-const orderConfirm =
-  document.getElementById("orderConfirm");
-
-
-// ============================================================
-// GLOBAL ERROR HANDLING
-// ============================================================
-
-window.addEventListener(
-  "error",
-  (event) => {
-
-    console.error(
-      "Erreur JavaScript:",
-      event.error || event.message
-    );
-
-  }
-);
-
-
-window.addEventListener(
-  "unhandledrejection",
-  (event) => {
-
-    console.error(
-      "Promise non gérée:",
-      event.reason
-    );
-
-  }
-);
-
-
-// ============================================================
-// HELPERS
-// ============================================================
-
-function escapeHtml(value) {
-
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-
-// ============================================================
-// IMAGE URL NORMALIZATION
-// ============================================================
-
-function normalizeImageUrl(value) {
-
-  const image =
-    String(value || "").trim();
-
-  if (!image) {
-    return "";
-  }
-
-  // Data URL
-  if (
-    image.startsWith("data:image/")
-  ) {
-    return image;
-  }
-
-  // Full URL
-  if (
-    image.startsWith("http://") ||
-    image.startsWith("https://")
-  ) {
-    return image;
-  }
-
-  // Relative path
-  let cleanPath =
-    image
-      .replace(/^\.\/+/, "")
-      .replace(/^\/+/, "");
-
-  // Encode spaces and special characters
-  const parts =
-    cleanPath
-      .split("/")
-      .map(
-        (part) =>
-          encodeURIComponent(
-            decodeURIComponentSafe(part)
-          )
-      );
-
-  return "./" + parts.join("/");
-}
-
-
-// ============================================================
-// SAFE URL DECODER
-// ============================================================
-
-function decodeURIComponentSafe(value) {
-
-  try {
-
-    return decodeURIComponent(value);
-
-  } catch {
-
-    return value;
-  }
-}
-
-
-// ============================================================
-// PRICE
-// ============================================================
-
-function formatPrice(price) {
-
-  const number =
-    Number(price);
-
-  if (Number.isNaN(number)) {
-
-    return "0 DH";
-  }
-
-  return `${number.toLocaleString("fr-FR")} DH`;
-}
-
-
-// ============================================================
-// FIRESTORE PRODUCTS
-// ============================================================
-
-let productsRef = null;
-
-if (db) {
-
-  productsRef =
-    collection(
-      db,
-      "products"
-    );
-}
-
-
-// ============================================================
-// ADMIN AUTHENTICATION
-// ============================================================
-//
-// IMPORTANT:
-// This listener is intentionally placed early so that
-// "Espace gérant" remains functional even if another
-// initialization part encounters an error.
-// ============================================================
-
-if (adminToggleLink) {
-
-  adminToggleLink.addEventListener(
-    "click",
-    async (event) => {
-
-      event.preventDefault();
-
-      console.log(
-        "Espace gérant cliqué"
-      );
-
-      // Already connected
-      if (currentUser) {
-
-        openAdminPanel();
-
-        return;
-      }
-
-      const email =
-        prompt(
-          "Email du gérant :"
-        );
-
-      if (!email) {
-
-        return;
-      }
-
-      const password =
-        prompt(
-          "Mot de passe du gérant :"
-        );
-
-      if (!password) {
-
-        return;
-      }
-
-      if (!auth) {
-
-        alert(
-          "Firebase Authentication n'est pas disponible."
-        );
-
-        return;
-      }
-
-      try {
-
-        await signInWithEmailAndPassword(
-          auth,
-          email.trim(),
-          password
-        );
-
-        alert(
-          "Connexion réussie ✅"
-        );
-
-        openAdminPanel();
-
-      } catch (error) {
-
-        console.error(
-          "Erreur connexion:",
-          error
-        );
-
-        let message =
-          "Connexion impossible.\n\n";
-
-        if (
-          error.code ===
-          "auth/invalid-credential"
-        ) {
-
-          message +=
-            "Email ou mot de passe incorrect.";
-
-        } else if (
-          error.code ===
-          "auth/user-not-found"
-        ) {
-
-          message +=
-            "Utilisateur introuvable.";
-
-        } else if (
-          error.code ===
-          "auth/wrong-password"
-        ) {
-
-          message +=
-            "Mot de passe incorrect.";
-
-        } else if (
-          error.code ===
-          "auth/invalid-email"
-        ) {
-
-          message +=
-            "Adresse email invalide.";
-
-        } else if (
-          error.code ===
-          "auth/too-many-requests"
-        ) {
-
-          message +=
-            "Trop de tentatives. Réessayez plus tard.";
-
-        } else {
-
-          message +=
-            error.message ||
-            "Erreur inconnue.";
-        }
-
-        alert(message);
-      }
-    }
-  );
-}
-
-
-// ============================================================
-// AUTH STATE
-// ============================================================
-
-if (auth) {
-
-  onAuthStateChanged(
-    auth,
-    (user) => {
-
-      currentUser =
-        user || null;
-
-      if (user) {
-
-        console.log(
-          "Manager connecté :",
-          user.email
-        );
-
-      } else {
-
-        console.log(
-          "Aucun manager connecté."
-        );
-      }
-    }
-  );
-}
-
-
-// ============================================================
-// OPEN ADMIN PANEL
-// ============================================================
-
-function openAdminPanel() {
-
-  if (!adminPanel) {
-
-    console.error(
-      "adminPanel introuvable dans index.html"
-    );
-
-    return;
-  }
-
-  adminPanel.hidden = false;
-
-  renderAdminList();
-
-  adminPanel.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
-}
-
-
-// ============================================================
-// CLOSE ADMIN PANEL
-// ============================================================
-
-if (closeAdmin) {
-
-  closeAdmin.addEventListener(
-    "click",
-    async () => {
-
-      if (adminPanel) {
-
-        adminPanel.hidden = true;
-      }
-
-      if (auth) {
-
-        try {
-
-          await signOut(auth);
-
-        } catch (error) {
-
-          console.error(
-            "Erreur déconnexion:",
-            error
-          );
-        }
-      }
-    }
-  );
-}
-
-
-// ============================================================
-// FIRESTORE - REAL TIME PRODUCTS
-// ============================================================
-
-if (productsRef) {
-
-  onSnapshot(
-    productsRef,
-
-    (snapshot) => {
-
-      products =
-        snapshot.docs.map(
-          (item) => ({
-            id: item.id,
-            ...item.data()
-          })
-        );
-
-      // Sort newest first
-      products.sort(
-        (a, b) => {
-
-          const dateA =
-            a.createdAt?.seconds || 0;
-
-          const dateB =
-            b.createdAt?.seconds || 0;
-
-          return dateB - dateA;
-        }
-      );
-
-      console.log(
-        `${products.length} produit(s) chargé(s) ✅`
-      );
-
-      renderFilters();
-
-      renderProducts();
-
-      renderOrderOptions();
-
-      renderAdminList();
-    },
-
-    (error) => {
-
-      console.error(
-        "Firestore error:",
-        error
-      );
-
-      if (emptyState) {
-
-        emptyState.hidden = false;
-
-        emptyState.textContent =
-          "Impossible de charger les produits.";
-      }
-
-      if (
-        error.code ===
-        "permission-denied"
-      ) {
-
-        console.error(
-          "Firestore Rules refusent la lecture."
-        );
-      }
-    }
-  );
-}
-
-
-// ============================================================
-// FILTERS
-// ============================================================
-
-function renderFilters() {
-
-  if (!collectionFilters) {
-
-    return;
-  }
-
-  const categories = [
-    "Tous",
-    ...new Set(
-      products
-        .map(
-          (product) =>
-            product.category
-        )
-        .filter(Boolean)
-    )
-  ];
-
-  if (
-    !categories.includes(
-      activeFilter
-    )
-  ) {
-
-    activeFilter =
-      "Tous";
-  }
-
-  collectionFilters.innerHTML =
-    "";
-
-  categories.forEach(
-    (category) => {
-
-      const button =
-        document.createElement(
-          "button"
-        );
-
-      button.type =
-        "button";
-
-      button.className =
-        category === activeFilter
-          ? "filter-btn active"
-          : "filter-btn";
-
-      button.textContent =
-        category;
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          activeFilter =
-            category;
-
-          renderFilters();
-
-          renderProducts();
-        }
-      );
-
-      collectionFilters.appendChild(
-        button
-      );
-    }
-  );
-}
-
-
-// ============================================================
-// FILTERED PRODUCTS
-// ============================================================
-
-function getFilteredProducts() {
-
-  if (
-    activeFilter ===
-    "Tous"
-  ) {
-
-    return products;
-  }
-
-  return products.filter(
-    (product) =>
-      product.category ===
-      activeFilter
-  );
-}
-
-
-// ============================================================
-// PRODUCTS DISPLAY
-// ============================================================
-
-function renderProducts() {
-
-  if (!productGrid) {
-
-    return;
-  }
-
-  const filteredProducts =
-    getFilteredProducts();
-
-  productGrid.innerHTML =
-    "";
-
-  if (
-    filteredProducts.length ===
-    0
-  ) {
-
-    if (emptyState) {
-
-      emptyState.hidden =
-        false;
-    }
-
-    return;
-  }
-
-  if (emptyState) {
-
-    emptyState.hidden =
-      true;
-  }
-
-  filteredProducts.forEach(
-    (product) => {
-
-      const card =
-        document.createElement(
-          "article"
-        );
-
-      card.className =
-        "product-card";
-
-      const imageUrl =
-        normalizeImageUrl(
-          product.image
-        );
-
-      const image =
-        imageUrl
-
-          ? `
-            <img
-              src="${escapeHtml(imageUrl)}"
-              alt="${escapeHtml(product.name)}"
-              loading="lazy"
-              onerror="this.style.display='none'; this.parentElement.classList.add('image-error');"
-            >
-          `
-
-          : `
-            <div class="product-no-image">
-              XN-KODASSY
             </div>
-          `;
+
+        </a>
 
 
-      const sizes =
-        Array.isArray(
-          product.sizes
-        )
+        <nav class="main-nav"
+             id="mainNav">
 
-          ? product.sizes
-              .map(
-                (size) =>
-                  escapeHtml(size)
-              )
-              .join(" · ")
+            <a href="#accueil">
+                Accueil
+            </a>
 
-          : escapeHtml(
-              product.sizes || ""
-            );
+            <a href="#produits">
+                Produits
+            </a>
+
+            <a href="#commande">
+                Commander
+            </a>
+
+            <a href="#contact">
+                Contact
+            </a>
+
+            <a href="#"
+               id="adminToggleLink"
+               class="nav-admin">
+
+                Espace gérant
+
+            </a>
+
+        </nav>
 
 
-      card.innerHTML = `
+        <button class="burger"
+                id="burgerBtn"
+                type="button"
+                aria-label="Ouvrir le menu"
+                aria-expanded="false"
+                aria-controls="mainNav">
 
-        <div class="product-image">
+            <span></span>
+            <span></span>
+            <span></span>
 
-          ${image}
+        </button>
+
+    </div>
+
+</header>
+
+
+
+<!-- =====================================================
+     HERO
+===================================================== -->
+
+<section class="hero"
+         id="accueil">
+
+    <div class="hero-background"></div>
+
+
+    <div class="hero-content">
+
+        <p class="hero-small">
+
+            XN-KODASSY FOOTBALL SHOP
+
+        </p>
+
+
+        <h1>
+
+            PLAY HARD.<br>
+
+            <span>
+                LOOK PRO.
+            </span>
+
+        </h1>
+
+
+        <p class="hero-description">
+
+            Chaussures, tenues et accessoires de football
+            pour les joueurs qui veulent donner le maximum
+            sur le terrain.
+
+        </p>
+
+
+        <div class="hero-actions">
+
+
+            <a href="#produits"
+               class="btn btn-primary">
+
+                Voir nos produits
+
+            </a>
+
+
+            <a href="#commande"
+               class="btn btn-outline">
+
+                Commander
+
+            </a>
+
 
         </div>
 
-
-        <div class="product-info">
-
-          <div class="product-category">
-            ${escapeHtml(
-              product.category || ""
-            )}
-          </div>
+    </div>
 
 
-          <h3>
-            ${escapeHtml(
-              product.name || ""
-            )}
-          </h3>
+    <div class="hero-ball">
+
+        ⚽
+
+    </div>
+
+</section>
 
 
-          <div class="product-price">
-            ${formatPrice(
-              product.price
-            )}
-          </div>
+
+<!-- =====================================================
+     SERVICES
+===================================================== -->
+
+<section class="features">
 
 
-          ${
-            sizes
-              ? `
-                <div class="product-sizes">
-                  ${sizes}
-                </div>
-              `
-              : ""
-          }
+    <div class="feature">
+
+        <div class="feature-icon">
+            ⚽
+        </div>
+
+        <h3>
+            Football
+        </h3>
+
+        <p>
+
+            Des produits sélectionnés
+            pour les passionnés du football.
+
+        </p>
+
+    </div>
 
 
-          ${
-            product.desc
-              ? `
-                <p class="product-desc">
-                  ${escapeHtml(
-                    product.desc
-                  )}
+
+    <div class="feature">
+
+        <div class="feature-icon">
+            👟
+        </div>
+
+        <h3>
+            Qualité
+        </h3>
+
+        <p>
+
+            Des chaussures et équipements
+            adaptés à votre style de jeu.
+
+        </p>
+
+    </div>
+
+
+
+    <div class="feature">
+
+        <div class="feature-icon">
+            📦
+        </div>
+
+        <h3>
+            Commande en ligne
+        </h3>
+
+        <p>
+
+            Choisissez votre produit et
+            envoyez votre demande rapidement.
+
+        </p>
+
+    </div>
+
+
+
+    <div class="feature">
+
+        <div class="feature-icon">
+            📱
+        </div>
+
+        <h3>
+            WhatsApp
+        </h3>
+
+        <p>
+
+            Commandez directement avec
+            notre service WhatsApp.
+
+        </p>
+
+    </div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     PRODUITS
+===================================================== -->
+
+<section class="section products-section"
+         id="produits">
+
+
+    <div class="section-head">
+
+
+        <p class="section-label">
+
+            XN-KODASSY
+
+        </p>
+
+
+        <h2>
+
+            NOS PRODUITS
+
+        </h2>
+
+
+        <p>
+
+            Découvrez notre sélection football.
+
+        </p>
+
+
+    </div>
+
+
+
+    <!-- FILTRES -->
+
+    <div class="collection-filters"
+         id="collectionFilters">
+
+        <button class="filter-chip is-active"
+                type="button"
+                data-filter="Tous">
+
+            Tous
+
+        </button>
+
+    </div>
+
+
+
+    <!-- GRILLE PRODUITS -->
+
+    <div class="product-grid"
+         id="productGrid">
+
+    </div>
+
+
+
+    <p class="empty-state"
+       id="emptyState"
+       hidden>
+
+        Aucun produit disponible
+        pour le moment.
+
+    </p>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     ESPACE GERANT
+===================================================== -->
+
+<section class="admin-panel"
+         id="adminPanel"
+         hidden>
+
+
+    <div class="admin-inner">
+
+
+        <div class="admin-head">
+
+
+            <div>
+
+
+                <p class="section-label">
+
+                    ADMINISTRATION
+
                 </p>
-              `
-              : ""
-          }
 
 
-          <button
-            type="button"
-            class="btn btn-primary order-product"
-            data-id="${escapeHtml(
-              product.id
-            )}"
-          >
-            Commander
-          </button>
+                <h2>
+
+                    Gérer les produits
+
+                </h2>
+
+
+            </div>
+
+
+            <button class="btn btn-outline-white btn-small"
+                    id="closeAdmin"
+                    type="button">
+
+                Fermer
+
+            </button>
+
 
         </div>
 
-      `;
 
-      productGrid.appendChild(
-        card
-      );
-    }
-  );
 
+        <!-- =================================================
+             FORMULAIRE PRODUIT
+        ================================================= -->
 
-  document
-    .querySelectorAll(
-      ".order-product"
-    )
-    .forEach(
-      (button) => {
 
-        button.addEventListener(
-          "click",
-          () => {
+        <form id="productForm"
+              class="admin-form">
 
-            const product =
-              products.find(
-                (item) =>
-                  item.id ===
-                  button.dataset.id
-              );
 
-            if (!product) {
+            <div class="form-row">
 
-              return;
-            }
 
-            selectProductForOrder(
-              product
-            );
+                <label>
 
-            const orderSection =
-              document.getElementById(
-                "order"
-              );
+                    Nom du produit
 
-            if (orderSection) {
 
-              orderSection.scrollIntoView(
-                {
-                  behavior:
-                    "smooth"
-                }
-              );
-            }
-          }
-        );
-      }
-    );
-}
+                    <input type="text"
+                           id="pName"
+                           placeholder="Nike Mercurial..."
+                           required>
 
 
-// ============================================================
-// SELECT PRODUCT FOR ORDER
-// ============================================================
+                </label>
 
-function selectProductForOrder(
-  product
-) {
 
-  if (oArticle) {
 
-    oArticle.value =
-      product.name;
+                <label>
 
-    oArticle.dispatchEvent(
-      new Event("change")
-    );
-  }
+                    Prix (DH)
 
 
-  if (oSize) {
+                    <input type="number"
+                           id="pPrice"
+                           min="0"
+                           step="1"
+                           placeholder="799"
+                           required>
 
-    const availableSizes =
-      Array.isArray(
-        product.sizes
-      )
 
-        ? product.sizes
-        : [];
+                </label>
 
 
-    oSize.innerHTML =
-      "";
+            </div>
 
 
-    if (
-      availableSizes.length >
-      0
-    ) {
 
-      availableSizes.forEach(
-        (size) => {
+            <div class="form-row">
 
-          const option =
-            document.createElement(
-              "option"
-            );
 
-          option.value =
-            size;
+                <label>
 
-          option.textContent =
-            size;
+                    Catégorie
 
-          oSize.appendChild(
-            option
-          );
-        }
-      );
 
-    } else {
+                    <select id="pCategory"
+                            required>
 
-      const option =
-        document.createElement(
-          "option"
-        );
 
-      option.value =
-        "";
+                        <option value="">
 
-      option.textContent =
-        "Taille unique";
+                            Sélectionner
 
-      oSize.appendChild(
-        option
-      );
-    }
-  }
-}
+                        </option>
 
 
-// ============================================================
-// ORDER ARTICLE OPTIONS
-// ============================================================
+                        <option value="Crampons">
 
-function renderOrderOptions() {
+                            Crampons
 
-  if (!oArticle) {
+                        </option>
 
-    return;
-  }
 
-  const previousValue =
-    oArticle.value;
+                        <option value="Tenues">
 
-  oArticle.innerHTML =
-    "";
+                            Tenues
 
+                        </option>
 
-  products.forEach(
-    (product) => {
 
-      const option =
-        document.createElement(
-          "option"
-        );
+                        <option value="Socks">
 
-      option.value =
-        product.name;
+                            Socks silicone
 
-      option.textContent =
-        `${product.name} — ${formatPrice(
-          product.price
-        )}`;
+                        </option>
 
-      oArticle.appendChild(
-        option
-      );
-    }
-  );
 
+                        <option value="Accessoires">
 
-  if (
-    previousValue &&
-    products.some(
-      (product) =>
-        product.name ===
-        previousValue
-    )
-  ) {
+                            Accessoires
 
-    oArticle.value =
-      previousValue;
-  }
+                        </option>
 
 
-  updateOrderSizes();
-}
+                        <option value="Ballons">
 
+                            Ballons
 
-// ============================================================
-// UPDATE ORDER SIZES
-// ============================================================
+                        </option>
 
-function updateOrderSizes() {
 
-  if (
-    !oArticle ||
-    !oSize
-  ) {
+                        <option value="Autres">
 
-    return;
-  }
+                            Autres
 
-  const product =
-    products.find(
-      (item) =>
-        item.name ===
-        oArticle.value
-    );
+                        </option>
 
-  oSize.innerHTML =
-    "";
 
+                    </select>
 
-  if (!product) {
 
-    return;
-  }
+                </label>
 
 
-  const sizes =
-    Array.isArray(
-      product.sizes
-    )
 
-      ? product.sizes
-      : [];
+                <label>
 
+                    Tailles disponibles
 
-  if (
-    sizes.length ===
-    0
-  ) {
 
-    const option =
-      document.createElement(
-        "option"
-      );
+                    <input type="text"
+                           id="pSizes"
+                           placeholder="38, 39, 40, 41, 42, 43">
 
-    option.value =
-      "";
 
-    option.textContent =
-      "Taille unique";
+                </label>
 
-    oSize.appendChild(
-      option
-    );
 
-    return;
-  }
+            </div>
 
 
-  sizes.forEach(
-    (size) => {
 
-      const option =
-        document.createElement(
-          "option"
-        );
+            <!-- =================================================
+                 PHOTO
+            ================================================= -->
 
-      option.value =
-        size;
 
-      option.textContent =
-        size;
+            <div class="form-row">
 
-      oSize.appendChild(
-        option
-      );
-    }
-  );
-}
 
+                <label class="full">
 
-// ============================================================
-// ARTICLE CHANGE
-// ============================================================
 
-if (oArticle) {
+                    Photo du produit
 
-  oArticle.addEventListener(
-    "change",
-    updateOrderSizes
-  );
-}
 
+                    <input type="file"
+                           id="pImageFile"
+                           accept="image/*">
 
-// ============================================================
-// WHATSAPP ORDER
-// ============================================================
 
-if (whatsappBtn) {
+                </label>
 
-  whatsappBtn.addEventListener(
-    "click",
-    (event) => {
 
-      event.preventDefault();
+            </div>
 
-      const name =
-        oName?.value.trim() ||
-        "";
 
-      const phone =
-        oPhone?.value.trim() ||
-        "";
 
-      const article =
-        oArticle?.value.trim() ||
-        "";
+            <div class="form-row"
+                 id="imagePreviewRow"
+                 hidden>
 
-      const size =
-        oSize?.value.trim() ||
-        "";
 
-      const qty =
-        oQty?.value ||
-        "1";
+                <div class="full image-preview-wrap">
 
-      const city =
-        oCity?.value.trim() ||
-        "";
 
-      const address =
-        oAddress?.value.trim() ||
-        "";
+                    <img id="imagePreview"
+                         class="image-preview"
+                         alt="Aperçu du produit">
 
-      const message =
-        oMessage?.value.trim() ||
-        "";
 
+                    <button type="button"
+                            class="btn btn-outline-white btn-small"
+                            id="removeImage">
 
-      if (
-        !name ||
-        !phone ||
-        !article
-      ) {
+                        Retirer la photo
 
-        alert(
-          "Veuillez remplir votre nom, téléphone et article."
-        );
+                    </button>
 
-        return;
-      }
 
+                </div>
 
-      const text = `
-Bonjour XN-KODASSY 👋
 
-Je souhaite commander :
+            </div>
 
-Article : ${article}
-Taille : ${size || "Non précisée"}
-Quantité : ${qty}
 
-Nom : ${name}
-Téléphone : ${phone}
-Ville : ${city}
-Adresse : ${address}
 
-Message :
-${message}
-      `.trim();
+            <!-- =================================================
+                 IMAGE GITHUB
+            ================================================= -->
 
 
-      const url =
-        `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-          text
-        )}`;
+            <div class="form-row">
 
 
-      window.open(
-        url,
-        "_blank"
-      );
+                <label class="full">
 
 
-      if (orderConfirm) {
+                    Chemin de l'image
 
-        orderConfirm.hidden =
-          false;
-      }
-    }
-  );
-}
 
+                    <input type="text"
+                           id="pImage"
+                           placeholder="images/PREDATOR BYDA.jpeg"
+                           autocomplete="off">
 
-// ============================================================
-// IMAGE FILE INPUT
-// ============================================================
-//
-// IMPORTANT:
-// We no longer upload this file to Firebase Storage.
-// We only keep the preview locally.
-// The actual product image should be uploaded manually
-// to the GitHub "images" folder.
-// ============================================================
 
-if (pImageFile) {
+                    <small>
 
-  pImageFile.addEventListener(
-    "change",
-    () => {
+                        Entrez le chemin de l'image présente
+                        dans le dossier <strong>images</strong>
+                        de votre dépôt GitHub.
 
-      const file =
-        pImageFile.files?.[0];
+                        Exemple :
+                        <strong>images/PREDATOR BYDA.jpeg</strong>
 
-      if (!file) {
+                    </small>
 
-        return;
-      }
 
+                </label>
 
-      if (
-        !file.type.startsWith(
-          "image/"
-        )
-      ) {
 
-        alert(
-          "Veuillez sélectionner une image."
-        );
+            </div>
 
-        pImageFile.value =
-          "";
 
-        return;
-      }
 
+            <!-- =================================================
+                 DESCRIPTION
+            ================================================= -->
 
-      const reader =
-        new FileReader();
 
+            <div class="form-row">
 
-      reader.onload =
-        (event) => {
 
-          editingImageData =
-            event.target.result;
+                <label class="full">
 
 
-          if (imagePreview) {
+                    Description
 
-            imagePreview.src =
-              editingImageData;
-          }
 
+                    <textarea id="pDesc"
+                              rows="4"
+                              placeholder="Décrivez le produit..."></textarea>
 
-          if (imagePreviewRow) {
 
-            imagePreviewRow.hidden =
-              false;
-          }
-        };
+                </label>
 
 
-      reader.readAsDataURL(
-        file
-      );
-    }
-  );
-}
+            </div>
 
 
-// ============================================================
-// IMAGE URL PREVIEW
-// ============================================================
 
-if (pImage) {
+            <!-- =================================================
+                 ACTIONS ADMIN
+            ================================================= -->
 
-  pImage.addEventListener(
-    "input",
-    () => {
 
-      const value =
-        pImage.value.trim();
+            <div class="admin-actions">
 
-      if (!value) {
 
-        if (imagePreviewRow) {
+                <button type="submit"
+                        class="btn btn-primary">
 
-          imagePreviewRow.hidden =
-            true;
-        }
+                    Ajouter le produit
 
-        return;
-      }
+                </button>
 
 
-      const imageUrl =
-        normalizeImageUrl(
-          value
-        );
+                <span class="admin-hint">
 
+                    Les produits sont enregistrés
+                    dans Firebase et visibles
+                    sur tous les appareils.
 
-      if (imagePreview) {
+                </span>
 
-        imagePreview.src =
-          imageUrl;
-      }
 
+            </div>
 
-      if (imagePreviewRow) {
 
-        imagePreviewRow.hidden =
-          false;
-      }
-    }
-  );
-}
+        </form>
 
 
-// ============================================================
-// REMOVE IMAGE
-// ============================================================
 
-if (removeImage) {
+        <!-- =================================================
+             PUBLICATION
+        ================================================= -->
 
-  removeImage.addEventListener(
-    "click",
-    () => {
 
-      editingImageData =
-        null;
+        <div class="publish-box">
 
 
-      if (pImageFile) {
+            <p class="section-label">
 
-        pImageFile.value =
-          "";
-      }
+                PUBLICATION
 
+            </p>
 
-      if (pImage) {
 
-        pImage.value =
-          "";
-      }
+            <p>
 
+                Les produits et les prix sont
+                enregistrés automatiquement dans
+                Firebase Firestore.
 
-      if (imagePreviewRow) {
+                Ils sont donc synchronisés et visibles
+                pour tous les visiteurs, sur ordinateur
+                et téléphone.
 
-        imagePreviewRow.hidden =
-          true;
-      }
+                Les images, elles, sont hébergées dans
+                le dossier <strong>images</strong>
+                de GitHub.
 
+            </p>
 
-      if (imagePreview) {
 
-        imagePreview.removeAttribute(
-          "src"
-        );
-      }
-    }
-  );
-}
+            <button type="button"
+                    class="btn btn-primary btn-small"
+                    id="exportCatalog">
 
+                Exporter le catalogue
 
-// ============================================================
-// ADD PRODUCT
-// ============================================================
+            </button>
 
-if (productForm) {
 
-  productForm.addEventListener(
-    "submit",
-    async (event) => {
+        </div>
 
-      event.preventDefault();
 
 
-      if (!currentUser) {
+        <!-- =================================================
+             LISTE ADMIN
+        ================================================= -->
 
-        alert(
-          "Vous devez être connecté comme gérant."
-        );
 
-        return;
-      }
+        <div class="admin-list"
+             id="adminList">
 
+        </div>
 
-      if (!productsRef) {
 
-        alert(
-          "Firestore n'est pas disponible."
-        );
+    </div>
 
-        return;
-      }
 
+</section>
 
-      const name =
-        pName?.value.trim() ||
-        "";
 
 
-      const price =
-        Number(
-          pPrice?.value
-        );
+<!-- =====================================================
+     COMMANDE
+===================================================== -->
 
+<section class="section order-section"
+         id="commande">
 
-      const category =
-        pCategory?.value.trim() ||
-        "";
 
+    <div class="section-head">
 
-      const sizesText =
-        pSizes?.value.trim() ||
-        "";
 
+        <p class="section-label">
 
-      const description =
-        pDesc?.value.trim() ||
-        "";
+            COMMANDE EN LIGNE
 
+        </p>
 
-      const imageInput =
-        pImage?.value.trim() ||
-        "";
 
+        <h2>
 
-      // ------------------------------------------------------
-      // VALIDATION
-      // ------------------------------------------------------
+            COMMANDER VOTRE PRODUIT
 
-      if (!name) {
+        </h2>
 
-        alert(
-          "Veuillez saisir le nom du produit."
-        );
 
-        return;
-      }
+        <p>
 
+            Remplissez le formulaire et
+            nous vous contacterons rapidement.
 
-      if (
-        Number.isNaN(price)
-      ) {
+        </p>
 
-        alert(
-          "Veuillez saisir un prix valide."
-        );
 
-        return;
-      }
+    </div>
 
 
-      const sizes =
-        sizesText
 
-          ? sizesText
-              .split(",")
-              .map(
-                (size) =>
-                  size.trim()
-              )
-              .filter(Boolean)
+    <div class="order-wrap">
 
-          : [];
 
+        <form id="orderForm"
+              class="order-form">
 
-      const submitButton =
-        productForm.querySelector(
-          'button[type="submit"]'
-        );
 
+            <div class="form-row">
 
-      if (submitButton) {
 
-        submitButton.disabled =
-          true;
+                <label>
 
-        submitButton.textContent =
-          "Enregistrement...";
-      }
+                    Nom complet
 
 
-      try {
+                    <input type="text"
+                           id="oName"
+                           placeholder="Votre nom"
+                           required>
 
-        // ----------------------------------------------------
-        // IMAGE
-        // ----------------------------------------------------
-        //
-        // No Firebase Storage.
-        //
-        // The value entered in #pImage is saved directly
-        // to Firestore.
-        //
-        // Example:
-        // images/PREDATOR BYDA.jpeg
-        //
-        // The image itself must exist in GitHub.
-        // ----------------------------------------------------
 
-        let finalImage =
-          normalizeImageUrl(
-            imageInput
-          );
+                </label>
 
 
-        // ----------------------------------------------------
-        // SAVE PRODUCT TO FIRESTORE
-        // ----------------------------------------------------
 
-        await addDoc(
-          productsRef,
-          {
-            name,
-            price,
-            category,
-            sizes,
+                <label>
 
-            image:
-              finalImage,
+                    Téléphone
 
-            imagePath:
-              "",
 
-            desc:
-              description,
+                    <input type="tel"
+                           id="oPhone"
+                           placeholder="06 00 00 00 00"
+                           required>
 
-            createdAt:
-              serverTimestamp()
-          }
-        );
 
+                </label>
 
-        alert(
-          "Produit ajouté avec succès ✅"
-        );
 
+            </div>
 
-        // ----------------------------------------------------
-        // RESET FORM
-        // ----------------------------------------------------
 
-        productForm.reset();
 
-        editingImageData =
-          null;
+            <div class="form-row">
 
 
-        if (imagePreviewRow) {
+                <label>
 
-          imagePreviewRow.hidden =
-            true;
-        }
+                    Produit
 
 
-        if (imagePreview) {
+                    <select id="oArticle"
+                            required>
 
-          imagePreview.removeAttribute(
-            "src"
-          );
-        }
 
+                        <option value="">
 
-      } catch (error) {
+                            Sélectionner un produit
 
-        console.error(
-          "Erreur ajout produit:",
-          error
-        );
+                        </option>
 
 
-        let message =
-          "Erreur lors de l'ajout du produit.\n\n";
+                    </select>
 
 
-        if (
-          error.code ===
-          "permission-denied"
-        ) {
+                </label>
 
-          message +=
-            "Vous n'avez pas les permissions nécessaires dans Firestore.";
 
-        } else {
 
-          message +=
-            error.message ||
-            "Erreur inconnue.";
-        }
+                <label>
 
+                    Taille
 
-        alert(
-          message
-        );
 
+                    <input type="text"
+                           id="oSize"
+                           placeholder="Ex : 42"
+                           required>
 
-      } finally {
 
-        if (submitButton) {
+                </label>
 
-          submitButton.disabled =
-            false;
 
-          submitButton.textContent =
-            "Ajouter le produit";
-        }
-      }
-    }
-  );
-}
+            </div>
 
 
-// ============================================================
-// ADMIN PRODUCT LIST
-// ============================================================
 
-function renderAdminList() {
+            <div class="form-row">
 
-  if (!adminList) {
 
-    return;
-  }
+                <label>
 
+                    Quantité
 
-  adminList.innerHTML =
-    "";
 
+                    <input type="number"
+                           id="oQty"
+                           min="1"
+                           value="1"
+                           required>
 
-  if (
-    products.length ===
-    0
-  ) {
 
-    adminList.innerHTML =
-      "<p>Aucun produit pour le moment.</p>";
+                </label>
 
-    return;
-  }
 
 
-  products.forEach(
-    (product) => {
+                <label>
 
-      const item =
-        document.createElement(
-          "div"
-        );
+                    Ville
 
 
-      item.className =
-        "admin-product-item";
+                    <input type="text"
+                           id="oCity"
+                           placeholder="Marrakech"
+                           required>
 
 
-      item.innerHTML = `
+                </label>
+
+
+            </div>
+
+
+
+            <div class="form-row">
+
+
+                <label class="full">
+
+                    Adresse / lieu de livraison
+
+
+                    <input type="text"
+                           id="oAddress"
+                           placeholder="Votre adresse">
+
+
+                </label>
+
+
+            </div>
+
+
+
+            <div class="form-row">
+
+
+                <label class="full">
+
+                    Message
+
+
+                    <textarea id="oMessage"
+                              rows="4"
+                              placeholder="Couleur, modèle, informations supplémentaires..."></textarea>
+
+
+                </label>
+
+
+            </div>
+
+
+
+            <div class="order-actions">
+
+
+                <button type="submit"
+                        class="btn btn-primary">
+
+                    Envoyer la commande
+
+                </button>
+
+
+
+                <a href="#"
+                   id="whatsappBtn"
+                   class="btn btn-whatsapp"
+                   target="_blank"
+                   rel="noopener">
+
+                    Commander via WhatsApp
+
+                </a>
+
+
+            </div>
+
+
+
+            <p class="order-confirm"
+               id="orderConfirm"
+               hidden>
+
+                Merci ! Votre demande a bien
+                été enregistrée.
+
+            </p>
+
+
+        </form>
+
+
+
+        <aside class="order-side">
+
+
+            <p class="section-label">
+
+                XN-KODASSY
+
+            </p>
+
+
+            <h3>
+
+                COMMENT ÇA MARCHE ?
+
+            </h3>
+
+
+            <ul>
+
+
+                <li>
+
+                    01 — Choisissez votre produit
+
+                </li>
+
+
+                <li>
+
+                    02 — Sélectionnez votre taille
+
+                </li>
+
+
+                <li>
+
+                    03 — Remplissez vos coordonnées
+
+                </li>
+
+
+                <li>
+
+                    04 — Envoyez votre commande
+
+                </li>
+
+
+                <li>
+
+                    05 — Nous vous contactons
+
+                </li>
+
+
+            </ul>
+
+
+        </aside>
+
+
+    </div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     CONTACT
+===================================================== -->
+
+<section class="contact-section"
+         id="contact">
+
+
+    <div class="contact-inner">
+
 
         <div>
 
-          <strong>
-            ${escapeHtml(
-              product.name
-            )}
-          </strong>
 
-          <span>
-            ${formatPrice(
-              product.price
-            )}
-          </span>
+            <p class="section-label">
+
+                CONTACT
+
+            </p>
+
+
+            <h2>
+
+                PRÊT À JOUER ?
+
+            </h2>
+
+
+            <p>
+
+                Une question sur une taille,
+                un produit ou une commande ?
+                Contactez-nous directement.
+
+            </p>
+
 
         </div>
 
 
-        <button
-          type="button"
-          class="delete-product"
-          data-id="${escapeHtml(
-            product.id
-          )}"
-        >
-          Supprimer
-        </button>
 
-      `;
+        <div class="contact-links">
 
 
-      adminList.appendChild(
-        item
-      );
-    }
-  );
+            <a href="https://wa.me/212600000000"
+               target="_blank"
+               rel="noopener">
 
+                WhatsApp
 
-  document
-    .querySelectorAll(
-      ".delete-product"
-    )
-    .forEach(
-      (button) => {
+            </a>
 
-        button.addEventListener(
-          "click",
-          async () => {
 
-            if (!currentUser) {
 
-              alert(
-                "Vous devez être connecté comme gérant."
-              );
+            <a href="mailto:contact@xn-kodassy.com">
 
-              return;
-            }
+                Email
 
+            </a>
 
-            const productId =
-              button.dataset.id;
 
 
-            const product =
-              products.find(
-                (item) =>
-                  item.id ===
-                  productId
-              );
+            <a href="https://www.instagram.com/"
+               target="_blank"
+               rel="noopener">
 
+                Instagram
 
-            if (!product) {
+            </a>
 
-              return;
-            }
 
+        </div>
 
-            const confirmed =
-              confirm(
-                `Supprimer "${product.name}" ?`
-              );
 
+    </div>
 
-            if (!confirmed) {
 
-              return;
-            }
+</section>
 
 
-            try {
 
-              // ------------------------------------------------
-              // DELETE FIRESTORE DOCUMENT
-              // ------------------------------------------------
-              //
-              // No Storage deletion anymore.
-              // The image remains in GitHub.
-              // ------------------------------------------------
+<!-- =====================================================
+     FOOTER
+===================================================== -->
 
-              await deleteDoc(
-                doc(
-                  db,
-                  "products",
-                  productId
-                )
-              );
+<footer class="site-footer">
 
 
-              alert(
-                "Produit supprimé ✅"
-              );
+    <div class="footer-inner">
 
 
-            } catch (error) {
+        <div>
 
-              console.error(
-                "Erreur suppression:",
-                error
-              );
 
+            <img src="images/WhatsApp Image 2026-09-09 at 01.29.00.jpeg"
+                 alt="XN-KODASSY"
+                 class="footer-logo">
 
-              alert(
-                "Erreur lors de la suppression.\n\n" +
-                error.message
-              );
-            }
-          }
-        );
-      }
-    );
-}
 
+            <p>
 
-// ============================================================
-// EXPORT CATALOG
-// ============================================================
+                Football. Style. Performance.
 
-if (exportCatalog) {
+            </p>
 
-  exportCatalog.addEventListener(
-    "click",
-    () => {
 
-      const exportProducts =
-        products.map(
-          (product) => ({
+        </div>
 
-            id:
-              product.id,
 
-            name:
-              product.name || "",
 
-            price:
-              product.price || 0,
+        <div>
 
-            category:
-              product.category || "",
 
-            sizes:
-              product.sizes || [],
+            <h4>
 
-            image:
-              product.image || "",
+                Navigation
 
-            desc:
-              product.desc || ""
-          })
-        );
+            </h4>
 
 
-      const json =
-        JSON.stringify(
-          exportProducts,
-          null,
-          2
-        );
+            <a href="#accueil">
 
+                Accueil
 
-      const blob =
-        new Blob(
-          [json],
-          {
-            type:
-              "application/json"
-          }
-        );
+            </a>
 
 
-      const url =
-        URL.createObjectURL(
-          blob
-        );
+            <a href="#produits">
 
+                Produits
 
-      const link =
-        document.createElement(
-          "a"
-        );
+            </a>
 
 
-      link.href =
-        url;
+            <a href="#commande">
 
+                Commander
 
-      link.download =
-        "xn-kodassy-products.json";
+            </a>
 
 
-      document.body.appendChild(
-        link
-      );
+        </div>
 
 
-      link.click();
 
+        <div>
 
-      link.remove();
 
+            <h4>
 
-      URL.revokeObjectURL(
-        url
-      );
-    }
-  );
-}
+                Catégories
 
+            </h4>
 
-// ============================================================
-// MOBILE MENU
-// ============================================================
 
-const burger =
-  document.querySelector(
-    ".burger"
-  );
+            <a href="#produits">
 
-const nav =
-  document.querySelector(
-    ".nav"
-  );
+                Crampons
 
+            </a>
 
-if (
-  burger &&
-  nav
-) {
 
-  burger.addEventListener(
-    "click",
-    () => {
+            <a href="#produits">
 
-      nav.classList.toggle(
-        "open"
-      );
-    }
-  );
-}
+                Tenues
 
+            </a>
 
-// ============================================================
-// YEAR
-// ============================================================
 
-const yearElement =
-  document.getElementById(
-    "year"
-  );
+            <a href="#produits">
 
+                Socks
 
-if (yearElement) {
+            </a>
 
-  yearElement.textContent =
-    new Date().getFullYear();
-}
 
+            <a href="#produits">
 
-// ============================================================
-// START
-// ============================================================
+                Accessoires
 
-console.log(
-  "================================================"
-);
+            </a>
 
-console.log(
-  "XN-KODASSY Firebase chargé ✅"
-);
 
-console.log(
-  "Mode: Firestore + GitHub Images"
-);
+        </div>
 
-console.log(
-  "Firebase Storage: DÉSACTIVÉ"
-);
 
-console.log(
-  "================================================"
-);
+    </div>
+
+
+
+    <div class="footer-bottom">
+
+
+        ©️
+
+        <span id="year"></span>
+
+        XN-KODASSY.
+
+        Tous droits réservés.
+
+
+    </div>
+
+
+</footer>
+
+
+
+<!-- =====================================================
+     JAVASCRIPT
+===================================================== -->
+
+<script type="module"
+        src="script.js?v=3"></script>
+
+
+</body>
+
+</html>
