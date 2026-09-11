@@ -36,7 +36,7 @@ import {
 // ============================================================
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDSKK_yyGQvuUumDesEhNKS0ss7I3dYzqc",
+  apiKey: "AIzaSyDYceEA3iY6N20uZJ3PBMAdINgxTvRMWoI",
   authDomain: "xn-kodassy.firebaseapp.com",
   projectId: "xn-kodassy",
   storageBucket: "xn-kodassy.firebasestorage.app",
