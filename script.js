@@ -921,10 +921,10 @@ function renderProducts() {
               product
             );
 
-            const orderSection =
+           const orderSection =
               document.getElementById(
-                "order"
-              );
+                  "commande"
+            );
 
             if (orderSection) {
 
