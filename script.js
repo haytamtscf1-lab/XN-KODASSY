@@ -27,7 +27,7 @@ import {
 // ============================================================
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDYceEA3iY6N20uZJ3PBMAdINgxTvRMWoI",
+  apiKey: "AIzaSyDYceEA3i6Y6N20uZJ3PBMAdINgxTvRMWoI",
   authDomain: "xn-kodassy.firebaseapp.com",
   projectId: "xn-kodassy",
   storageBucket: "xn-kodassy.firebasestorage.app",
@@ -44,10 +44,15 @@ try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
+
   console.log("Firebase initialisé ✅");
 } catch (error) {
   console.error("Erreur initialisation Firebase:", error);
-  alert("Erreur de connexion à Firebase.\n\n" + error.message);
+
+  alert(
+    "Erreur de connexion à Firebase.\n\n" +
+    error.message
+  );
 }
 
 // ============================================================
@@ -66,43 +71,105 @@ let unsubscribeOrders = null;
 // DOM
 // ============================================================
 
-const productGrid = document.getElementById("productGrid");
-const emptyState = document.getElementById("emptyState");
-const collectionFilters = document.getElementById("collectionFilters");
+const productGrid =
+  document.getElementById("productGrid");
 
-const adminPanel = document.getElementById("adminPanel");
-const adminList = document.getElementById("adminList");
-const productForm = document.getElementById("productForm");
+const emptyState =
+  document.getElementById("emptyState");
 
-const pName = document.getElementById("pName");
-const pPrice = document.getElementById("pPrice");
-const pCategory = document.getElementById("pCategory");
-const pSizes = document.getElementById("pSizes");
-const pImageFile = document.getElementById("pImageFile");
-const pImage = document.getElementById("pImage");
-const pDesc = document.getElementById("pDesc");
-const imagePreview = document.getElementById("imagePreview");
-const imagePreviewRow = document.getElementById("imagePreviewRow");
-const removeImage = document.getElementById("removeImage");
-const exportCatalog = document.getElementById("exportCatalog");
+const collectionFilters =
+  document.getElementById("collectionFilters");
 
-const adminToggleLink = document.getElementById("adminToggleLink");
-const closeAdmin = document.getElementById("closeAdmin");
+const adminPanel =
+  document.getElementById("adminPanel");
 
-const oName = document.getElementById("oName");
-const oPhone = document.getElementById("oPhone");
-const oArticle = document.getElementById("oArticle");
-const oSize = document.getElementById("oSize");
-const oQty = document.getElementById("oQty");
-const oCity = document.getElementById("oCity");
-const oAddress = document.getElementById("oAddress");
-const oMessage = document.getElementById("oMessage");
-const whatsappBtn = document.getElementById("whatsappBtn");
-const orderConfirm = document.getElementById("orderConfirm");
-const orderForm = document.getElementById("orderForm");
+const adminList =
+  document.getElementById("adminList");
 
-const productsRef = db ? collection(db, "products") : null;
-const ordersRef = db ? collection(db, "orders") : null;
+const productForm =
+  document.getElementById("productForm");
+
+const pName =
+  document.getElementById("pName");
+
+const pPrice =
+  document.getElementById("pPrice");
+
+// ANCIEN PRIX
+const pOldPrice =
+  document.getElementById("pOldPrice");
+
+const pCategory =
+  document.getElementById("pCategory");
+
+const pSizes =
+  document.getElementById("pSizes");
+
+const pImageFile =
+  document.getElementById("pImageFile");
+
+const pImage =
+  document.getElementById("pImage");
+
+const pDesc =
+  document.getElementById("pDesc");
+
+const imagePreview =
+  document.getElementById("imagePreview");
+
+const imagePreviewRow =
+  document.getElementById("imagePreviewRow");
+
+const removeImage =
+  document.getElementById("removeImage");
+
+const exportCatalog =
+  document.getElementById("exportCatalog");
+
+const adminToggleLink =
+  document.getElementById("adminToggleLink");
+
+const closeAdmin =
+  document.getElementById("closeAdmin");
+
+const oName =
+  document.getElementById("oName");
+
+const oPhone =
+  document.getElementById("oPhone");
+
+const oArticle =
+  document.getElementById("oArticle");
+
+const oSize =
+  document.getElementById("oSize");
+
+const oQty =
+  document.getElementById("oQty");
+
+const oCity =
+  document.getElementById("oCity");
+
+const oAddress =
+  document.getElementById("oAddress");
+
+const oMessage =
+  document.getElementById("oMessage");
+
+const whatsappBtn =
+  document.getElementById("whatsappBtn");
+
+const orderConfirm =
+  document.getElementById("orderConfirm");
+
+const orderForm =
+  document.getElementById("orderForm");
+
+const productsRef =
+  db ? collection(db, "products") : null;
+
+const ordersRef =
+  db ? collection(db, "orders") : null;
 
 // ============================================================
 // HELPERS
@@ -126,11 +193,16 @@ function decodeURIComponentSafe(value) {
 }
 
 function normalizeImageUrl(value) {
-  const image = String(value || "").trim();
+  const image =
+    String(value || "").trim();
 
-  if (!image) return "";
+  if (!image) {
+    return "";
+  }
 
-  if (image.startsWith("data:image/")) return image;
+  if (image.startsWith("data:image/")) {
+    return image;
+  }
 
   if (
     image.startsWith("http://") ||
@@ -139,23 +211,26 @@ function normalizeImageUrl(value) {
     return image;
   }
 
-  const cleanPath = image
-    .replace(/^\.\/+/, "")
-    .replace(/^\/+/, "");
+  const cleanPath =
+    image
+      .replace(/^\.\/+/, "")
+      .replace(/^\/+/, "");
 
-  const parts = cleanPath
-    .split("/")
-    .map(part =>
-      encodeURIComponent(
-        decodeURIComponentSafe(part)
-      )
-    );
+  const parts =
+    cleanPath
+      .split("/")
+      .map(part =>
+        encodeURIComponent(
+          decodeURIComponentSafe(part)
+        )
+      );
 
   return "./" + parts.join("/");
 }
 
 function formatPrice(price) {
-  const number = Number(price);
+  const number =
+    Number(price);
 
   if (Number.isNaN(number)) {
     return "0 DH";
@@ -164,42 +239,125 @@ function formatPrice(price) {
   return `${number.toLocaleString("fr-FR")} DH`;
 }
 
+// ============================================================
+// ANCIEN PRIX
+// ============================================================
+
+function renderProductPrice(product) {
+
+  const currentPrice =
+    Number(product?.price);
+
+  const oldPrice =
+    Number(product?.oldPrice);
+
+  // Afficher l'ancien prix uniquement
+  // s'il existe et qu'il est supérieur
+  // au prix actuel.
+
+  if (
+    Number.isFinite(oldPrice) &&
+    Number.isFinite(currentPrice) &&
+    oldPrice > currentPrice
+  ) {
+
+    return `
+      <span
+        class="product-old-price"
+        style="
+          text-decoration: line-through;
+          opacity: 0.6;
+          margin-right: 10px;
+        "
+      >
+        ${formatPrice(oldPrice)}
+      </span>
+
+      <span class="product-current-price">
+        ${formatPrice(currentPrice)}
+      </span>
+    `;
+  }
+
+  return `
+    <span class="product-current-price">
+      ${formatPrice(currentPrice)}
+    </span>
+  `;
+}
+
+// ============================================================
+// DATE
+// ============================================================
+
 function formatDate(timestamp) {
+
   if (!timestamp) {
     return "Date inconnue";
   }
 
   try {
-    const date = timestamp.toDate
-      ? timestamp.toDate()
-      : new Date(timestamp);
 
-    return date.toLocaleString("fr-FR", {
-      dateStyle: "short",
-      timeStyle: "short"
-    });
+    const date =
+      timestamp.toDate
+        ? timestamp.toDate()
+        : new Date(timestamp);
+
+    return date.toLocaleString(
+      "fr-FR",
+      {
+        dateStyle: "short",
+        timeStyle: "short"
+      }
+    );
+
   } catch {
+
     return "Date inconnue";
   }
 }
 
+// ============================================================
+// ORDER DATA
+// ============================================================
+
 function getOrderData() {
+
   return {
-    name: oName?.value.trim() || "",
-    phone: oPhone?.value.trim() || "",
-    article: oArticle?.value.trim() || "",
-    size: oSize?.value.trim() || "",
-    qty: Math.max(
-      1,
-      Number(oQty?.value || 1)
-    ),
-    city: oCity?.value.trim() || "",
-    address: oAddress?.value.trim() || "",
-    message: oMessage?.value.trim() || ""
+
+    name:
+      oName?.value.trim() || "",
+
+    phone:
+      oPhone?.value.trim() || "",
+
+    article:
+      oArticle?.value.trim() || "",
+
+    size:
+      oSize?.value.trim() || "",
+
+    qty:
+      Math.max(
+        1,
+        Number(
+          oQty?.value || 1
+        )
+      ),
+
+    city:
+      oCity?.value.trim() || "",
+
+    address:
+      oAddress?.value.trim() || "",
+
+    message:
+      oMessage?.value.trim() || ""
   };
 }
 
 function validateOrder(data) {
+
   if (
     !data.name ||
     !data.phone ||
@@ -207,20 +365,31 @@ function validateOrder(data) {
     !data.size ||
     !data.city
   ) {
-    return "Veuillez remplir tous les champs obligatoires.";
+
+    return (
+      "Veuillez remplir tous les champs obligatoires."
+    );
   }
 
   if (
     !Number.isFinite(data.qty) ||
     data.qty < 1
   ) {
-    return "Veuillez saisir une quantité valide.";
+
+    return (
+      "Veuillez saisir une quantité valide."
+    );
   }
 
   return "";
 }
 
+// ============================================================
+// WHATSAPP URL
+// ============================================================
+
 function buildWhatsAppUrl(data) {
+
   const text = `
 Bonjour XN-KODASSY 👋
 
@@ -239,7 +408,10 @@ Message :
 ${data.message || "Aucun message supplémentaire."}
   `.trim();
 
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+  return (
+    `https://wa.me/${WHATSAPP_NUMBER}?text=` +
+    encodeURIComponent(text)
+  );
 }
 
 // ============================================================
@@ -247,37 +419,44 @@ ${data.message || "Aucun message supplémentaire."}
 // ============================================================
 
 if (adminToggleLink) {
+
   adminToggleLink.addEventListener(
     "click",
-    async (event) => {
+    async event => {
 
       event.preventDefault();
 
       if (currentUser) {
+
         openAdminPanel();
+
         return;
       }
 
-      const email = prompt(
-        "Email du gérant :"
-      );
+      const email =
+        prompt(
+          "Email du gérant :"
+        );
 
       if (!email) {
         return;
       }
 
-      const password = prompt(
-        "Mot de passe du gérant :"
-      );
+      const password =
+        prompt(
+          "Mot de passe du gérant :"
+        );
 
       if (!password) {
         return;
       }
 
       if (!auth) {
+
         alert(
           "Firebase Authentication n'est pas disponible."
         );
+
         return;
       }
 
@@ -350,7 +529,6 @@ if (adminToggleLink) {
           message +=
             error.message ||
             "Erreur inconnue.";
-
         }
 
         alert(message);
@@ -395,7 +573,6 @@ if (auth) {
       }
     }
   );
-
 }
 
 function startOrdersListener() {
@@ -490,6 +667,7 @@ if (closeAdmin) {
     async () => {
 
       if (adminPanel) {
+
         adminPanel.hidden =
           true;
       }
@@ -584,6 +762,7 @@ function renderFilters() {
 
   const categories = [
     "Tous",
+
     ...new Set(
       products
         .map(
@@ -652,6 +831,7 @@ function getFilteredProducts() {
     activeFilter ===
     "Tous"
   ) {
+
     return products;
   }
 
@@ -696,6 +876,7 @@ function renderProducts() {
   }
 
   if (emptyState) {
+
     emptyState.hidden =
       true;
   }
@@ -767,9 +948,7 @@ function renderProducts() {
           </h3>
 
           <div class="product-price">
-            ${formatPrice(
-              product.price
-            )}
+            ${renderProductPrice(product)}
           </div>
 
           ${
@@ -897,6 +1076,7 @@ function selectProductForOrder(
   }
 
   if (oArticle) {
+
     oArticle.value =
       product.name;
   }
@@ -1228,11 +1408,13 @@ if (pImageFile) {
         event => {
 
           if (imagePreview) {
+
             imagePreview.src =
               event.target.result;
           }
 
           if (imagePreviewRow) {
+
             imagePreviewRow.hidden =
               false;
           }
@@ -1257,6 +1439,7 @@ if (pImage) {
       if (!value) {
 
         if (imagePreviewRow) {
+
           imagePreviewRow.hidden =
             true;
         }
@@ -1265,6 +1448,7 @@ if (pImage) {
       }
 
       if (imagePreview) {
+
         imagePreview.src =
           normalizeImageUrl(
             value
@@ -1272,6 +1456,7 @@ if (pImage) {
       }
 
       if (imagePreviewRow) {
+
         imagePreviewRow.hidden =
           false;
       }
@@ -1286,21 +1471,25 @@ if (removeImage) {
     () => {
 
       if (pImageFile) {
+
         pImageFile.value =
           "";
       }
 
       if (pImage) {
+
         pImage.value =
           "";
       }
 
       if (imagePreviewRow) {
+
         imagePreviewRow.hidden =
           true;
       }
 
       if (imagePreview) {
+
         imagePreview.removeAttribute(
           "src"
         );
@@ -1347,6 +1536,18 @@ if (productForm) {
           pPrice?.value
         );
 
+      // ======================================================
+      // ANCIEN PRIX
+      // ======================================================
+
+      const oldPriceInput =
+        pOldPrice?.value.trim() || "";
+
+      const oldPrice =
+        oldPriceInput
+          ? Number(oldPriceInput)
+          : null;
+
       const category =
         pCategory?.value.trim() || "";
 
@@ -1368,10 +1569,31 @@ if (productForm) {
         return;
       }
 
-      if (Number.isNaN(price)) {
+      if (
+        Number.isNaN(price) ||
+        price < 0
+      ) {
 
         alert(
           "Veuillez saisir un prix valide."
+        );
+
+        return;
+      }
+
+      // L'ancien prix doit être
+      // supérieur au prix actuel.
+
+      if (
+        oldPriceInput &&
+        (
+          Number.isNaN(oldPrice) ||
+          oldPrice <= price
+        )
+      ) {
+
+        alert(
+          "L'ancien prix doit être supérieur au prix actuel."
         );
 
         return;
@@ -1411,6 +1633,12 @@ if (productForm) {
 
             price,
 
+            // ================================================
+            // ANCIEN PRIX ENREGISTRÉ DANS FIRESTORE
+            // ================================================
+
+            oldPrice,
+
             category,
 
             sizes,
@@ -1438,11 +1666,13 @@ if (productForm) {
         productForm.reset();
 
         if (imagePreviewRow) {
+
           imagePreviewRow.hidden =
             true;
         }
 
         if (imagePreview) {
+
           imagePreview.removeAttribute(
             "src"
           );
@@ -1544,9 +1774,7 @@ function renderAdminList() {
             </strong>
 
             <span>
-              ${formatPrice(
-                product.price
-              )}
+              ${renderProductPrice(product)}
             </span>
 
           </div>
@@ -2000,6 +2228,14 @@ if (exportCatalog) {
               product.price ||
               0,
 
+            // ================================================
+            // ANCIEN PRIX DANS L'EXPORT
+            // ================================================
+
+            oldPrice:
+              product.oldPrice ??
+              null,
+
             category:
               product.category ||
               "",
@@ -2163,6 +2399,10 @@ console.log(
 
 console.log(
   "Firebase Storage: DÉSACTIVÉ"
+);
+
+console.log(
+  "Ancien prix: ACTIVÉ ✅"
 );
 
 console.log(
